@@ -7,6 +7,8 @@ separately by `model.SchemaVersion` (currently 1.2.0).
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-08-24
+
 ### Added
 - **`pgbot why` — deterministic root-cause chains from baseline history.** The
   correlation feature the roadmap promised: per-object time series over the
@@ -24,7 +26,12 @@ separately by `model.SchemaVersion` (currently 1.2.0).
   needs ≥3 snapshots and says exactly what to run when it has fewer. `--json`
   emits a separately versioned report (`why_schema_version: 1.0.0`); the MCP
   server gains a matching `why` tool. Counter resets split series rather than
-  fabricating rates; missing top-N entries are gaps, never interpolated.
+  fabricating rates; missing top-N entries are gaps, never interpolated. The
+  output explains itself: what was analyzed ("analyzed N queries and M
+  tables"), how many regressions were found vs shown ("showing the 5 worst of
+  7"), and a how-to-read legend; `pgbot why 10` (or `--max-chains`) widens the
+  default 5, and the JSON carries the same scope fields
+  (`analyzed_queries`/`analyzed_tables`/`regressions_found`).
 - **pgaudit posture findings.** When the pgaudit extension is installed, pgbot
   grades its configuration (pgbot cannot read the audit trail itself — it lives
   in the server log — but every knob that decides whether the trail exists is
@@ -403,6 +410,7 @@ separately by `model.SchemaVersion` (currently 1.2.0).
   1.25.13, and golang.org/x/text to v0.39.0; `govulncheck` now runs in CI and
   reports no vulnerabilities.
 
+[0.5.0]: https://github.com/pgrundev/pgbot/releases/tag/v0.5.0
 [0.4.3]: https://github.com/pgrundev/pgbot/releases/tag/v0.4.3
 [0.4.2]: https://github.com/pgrundev/pgbot/releases/tag/v0.4.2
 [0.4.1]: https://github.com/pgrundev/pgbot/releases/tag/v0.4.1
