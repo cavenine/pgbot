@@ -233,3 +233,29 @@ func TestAnalyze_capReportsTotalFound(t *testing.T) {
 		t.Errorf("RegressionsFound = %d, want 2 (cap must not hide the total)", r.RegressionsFound)
 	}
 }
+
+// Real-data regression: sub-millisecond means rendered "0ms → 0ms" on a 9.7×
+// slowdown, and tiny per-second rates rendered "0.0 → 0.0". Small values keep
+// significant digits; large ones stay terse.
+func TestFormatters_smallValuesKeepPrecision(t *testing.T) {
+	for _, tc := range []struct {
+		in   float64
+		want string
+	}{
+		{0.041, "0.041ms"}, {0.4, "0.4ms"}, {4.2, "4.2ms"}, {26, "26ms"}, {1500, "1.5s"},
+	} {
+		if got := ms(tc.in); got != tc.want {
+			t.Errorf("ms(%v) = %q, want %q", tc.in, got, tc.want)
+		}
+	}
+	for _, tc := range []struct {
+		in   float64
+		want string
+	}{
+		{0.0042, "0.0042"}, {0.1, "0.1"}, {50, "50"},
+	} {
+		if got := rateStr(tc.in); got != tc.want {
+			t.Errorf("rateStr(%v) = %q, want %q", tc.in, got, tc.want)
+		}
+	}
+}

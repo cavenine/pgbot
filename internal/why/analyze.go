@@ -406,16 +406,27 @@ func compactQuery(q string) string {
 	return q
 }
 
+// ms renders a millisecond value without erasing it: sub-millisecond means are
+// real (a 9.7× slowdown can live entirely below 1ms) and must keep their
+// significant digits, while big values stay terse.
 func ms(v float64) string {
-	if v >= 1000 {
+	switch {
+	case v >= 1000:
 		return fmt.Sprintf("%.1fs", v/1000)
+	case v >= 10:
+		return fmt.Sprintf("%.0fms", v)
+	case v >= 1:
+		return fmt.Sprintf("%.1fms", v)
+	default:
+		return fmt.Sprintf("%.2gms", v)
 	}
-	return fmt.Sprintf("%.0fms", v)
 }
 
+// rateStr keeps significant digits on small per-second rates ("0.0042"), terse
+// on large ones ("50").
 func rateStr(v float64) string {
 	if v < 1 {
-		return fmt.Sprintf("%.1f", v)
+		return fmt.Sprintf("%.2g", v)
 	}
 	return fmt.Sprintf("%.0f", v)
 }
