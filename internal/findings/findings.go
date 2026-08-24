@@ -134,7 +134,7 @@ var knownIDs = map[string]bool{
 	"work_mem_overcommit": true, "statement_timeout_unset": true, "io_timing_off": true,
 	"high_rollback_ratio": true, "pg_stat_statements_missing": true,
 	"stale_stats_window": true,
-	"pgaudit_silent": true, "pgaudit_logs_parameters": true, "pgaudit_double_logging": true,
+	"pgaudit_silent":     true, "pgaudit_logs_parameters": true, "pgaudit_double_logging": true,
 	// B2 meta-findings (the suppression system reporting on itself).
 	"suppression_expired": true, "suppression_unused": true,
 }
