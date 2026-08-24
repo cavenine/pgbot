@@ -7,6 +7,16 @@ separately by `model.SchemaVersion` (currently 1.2.0).
 
 ## [Unreleased]
 
+### Fixed
+- **The recurring Windows npx-smoke false alarm was npx cache poisoning, not
+  slow propagation.** A first attempt that runs before `@pgbot/win32-x64` has
+  propagated caches the wrapper WITHOUT its platform optionalDependency, and
+  every retry silently reuses that poisoned tree — which is how the
+  0.4.2/0.4.3/0.5.0 Windows smokes stayed red for their whole retry budget
+  while the registry was verifiably fine. The smoke job now gives each attempt
+  a virgin npm cache, and the wrapper's no-binary error tells real users who
+  hit the same trap how to retry with a fresh cache.
+
 ## [0.5.0] - 2026-08-24
 
 ### Added

@@ -40,6 +40,9 @@ function main() {
     process.stderr.write(
       `pgbot: no prebuilt binary for your platform (${platform}-${arch}).\n` +
         `pgbot ships binaries for linux, darwin, and win32 on x64 and arm64.\n` +
+        `If you ran npx moments after a release, npm may have cached an install\n` +
+        `made before your platform's package propagated — retry with a fresh\n` +
+        `cache: npx --cache "$(mktemp -d)" -y @pgbot/cli --version\n` +
         `Install another way: https://github.com/pgrundev/pgbot#install\n`
     );
     process.exit(64); // usage/environment error, per pgbot's exit-code contract

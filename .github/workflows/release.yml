@@ -95,12 +95,16 @@ jobs:
         shell: bash
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
-          # 20 x 30s: registry propagation to the Windows runner has twice taken
-          # longer than a 200s budget (0.4.2, 0.4.3 — the package was fine both
-          # times), so give it 10 minutes before calling the channel broken.
+          # Each attempt gets a VIRGIN npm cache. Without this, an attempt that
+          # runs before the platform package has propagated caches the wrapper
+          # WITHOUT its optionalDependency, and every later retry silently
+          # reuses that poisoned tree — the 0.4.2/0.4.3/0.5.0 windows reds all
+          # died this way while the registry was fine. 20 x 30s covers the
+          # propagation window itself.
           for i in $(seq 1 20); do
-            if npx -y "@pgbot/cli@${VERSION}" --version; then exit 0; fi
-            echo "@pgbot/cli@${VERSION} not installable yet (attempt $i) — waiting for npm propagation"
+            cache="${RUNNER_TEMP:-/tmp}/npx-cache-$i"
+            if npx -y --cache "$cache" "@pgbot/cli@${VERSION}" --version; then exit 0; fi
+            echo "@pgbot/cli@${VERSION} not installable yet (attempt $i, fresh cache) — waiting for npm propagation"
             sleep 30
           done
           echo "FAILED: npx @pgbot/cli@${VERSION} --version never succeeded"
