@@ -23,6 +23,7 @@ var clusterWide = map[string]bool{
 	"fsync_off": true, "full_page_writes_off": true, "autovacuum_off": true,
 	"random_page_cost_high": true, "work_mem_overcommit": true, "statement_timeout_unset": true,
 	"io_timing_off": true, "checkpoints_forced": true,
+	"pgaudit_silent": true, "pgaudit_logs_parameters": true, "pgaudit_double_logging": true,
 	"connections_overprovisioned": true, "checksums_disabled": true, "ignore_checksum_failure_on": true,
 	// cluster activity (pg_stat_activity)
 	"blocking_chains": true, "idle_in_transaction": true, "long_running_transaction": true,

@@ -28,6 +28,8 @@ Lost durability, corruption, wraparound, replication — things that end in an o
 - **[int4_identity_column](int4_identity_column.md)** · Warn — a sequence-backed int2/int4 column that will wrap (int4 at 2.1B) regardless of current value
 - **[long_running_transaction](long_running_transaction.md)** · Warn — a transaction open far too long, pinning vacuum
 - **[mxid_wraparound](mxid_wraparound.md)** · Warn — multixact-id age climbing toward its own wraparound wall
+- **[pgaudit_logs_parameters](pgaudit_logs_parameters.md)** · Warn — pgaudit.log_parameter=on writes bind parameters (passwords, PII) into the server log
+- **[pgaudit_silent](pgaudit_silent.md)** · Warn — pgaudit is installed but pgaudit.log selects no classes — the audit trail does not exist
 - **[prepared_xact_abandoned](prepared_xact_abandoned.md)** · Warn — a prepared (2PC) transaction left open, blocking vacuum forever
 - **[recovery_conflicts](recovery_conflicts.md)** · Warn — queries on a standby cancelled by recovery conflicts
 - **[replica_disconnected](replica_disconnected.md)** · Warn — a streaming standby that was present has dropped off
@@ -79,6 +81,7 @@ Whole-database capacity lost to waits, cache misses, and write amplification.
 - **[work_mem_low](work_mem_low.md)** · Warn — queries spill sorts/hashes to temp files — work_mem too small
 - **[autovacuum_long_running](autovacuum_long_running.md)** · Info — an autovacuum worker has been running over an hour
 - **[io_timing_off](io_timing_off.md)** · Info — track_io_timing off, so per-query IO time is unavailable
+- **[pgaudit_double_logging](pgaudit_double_logging.md)** · Info — pgaudit and log_statement=all record every statement twice — duplicate log volume
 
 ## Cost & visibility
 

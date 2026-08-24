@@ -7,6 +7,19 @@ separately by `model.SchemaVersion` (currently 1.2.0).
 
 ## [Unreleased]
 
+### Added
+- **pgaudit posture findings.** When the pgaudit extension is installed, pgbot
+  grades its configuration (pgbot cannot read the audit trail itself — it lives
+  in the server log — but every knob that decides whether the trail exists is
+  visible in pg_settings): `pgaudit_silent` (warn) — installed but
+  `pgaudit.log` selects no classes, the compliance foot-gun where the audit
+  trail everyone relies on does not exist; `pgaudit_logs_parameters` (warn,
+  risk) — `pgaudit.log_parameter=on` writes bind parameters (passwords, PII)
+  into plaintext server logs; `pgaudit_double_logging` (info) — pgaudit session
+  logging alongside `log_statement=all` records every statement twice. Each
+  ships with a catalogue page (`pgbot explain-finding pgaudit_silent`),
+  suppression support, and cluster-wide dedupe under `--all-databases`.
+
 ## [0.4.3] - 2026-08-22
 
 ### Fixed

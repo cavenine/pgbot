@@ -28,6 +28,18 @@ func TestCatalog_matchesEmitted(t *testing.T) {
 		"checksum_failures": {
 			Checksums: &model.Checksums{Failures: []model.ChecksumFailure{{Database: "app", Count: 3}}},
 		},
+		"pgaudit_silent": {
+			Server:   model.ServerInfo{Extensions: []string{"pgaudit"}},
+			Settings: &model.Settings{Params: map[string]string{"pgaudit.log": "none"}},
+		},
+		"pgaudit_logs_parameters": {
+			Server:   model.ServerInfo{Extensions: []string{"pgaudit"}},
+			Settings: &model.Settings{Params: map[string]string{"pgaudit.log": "all", "pgaudit.log_parameter": "on"}},
+		},
+		"pgaudit_double_logging": {
+			Server:   model.ServerInfo{Extensions: []string{"pgaudit"}},
+			Settings: &model.Settings{Params: map[string]string{"pgaudit.log": "all", "log_statement": "all"}},
+		},
 	}
 
 	for id, meta := range catalog {
