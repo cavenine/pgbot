@@ -131,9 +131,9 @@ func TestWhy_emptyStore(t *testing.T) {
 func TestWhy_selfDescribingOutput(t *testing.T) {
 	out := runWhyCmd(t, "--store", whyFixtureStore(t), "--no-color")
 	for _, want := range []string{
-		"analyzed 1 quer",                // scope: what was looked at
-		"1 sustained regression",         // total found
-		"how to read this",               // the legend line
+		"analyzed 1 quer",        // scope: what was looked at
+		"1 sustained regression", // total found
+		"how to read this",       // the legend line
 		"what regressed \u2190 the mechanism \u2190 what set it off", // chain anatomy
 	} {
 		if !strings.Contains(out, want) {
