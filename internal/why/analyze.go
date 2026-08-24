@@ -48,8 +48,13 @@ type Report struct {
 	WindowStart   time.Time `json:"window_start"`
 	WindowEnd     time.Time `json:"window_end"`
 	Snapshots     int       `json:"snapshots"`
-	Chains        []Chain   `json:"chains"`
-	Notes         []string  `json:"notes,omitempty"`
+	// Scope and totals, so consumers can say "analyzed X, found Y, showing Z"
+	// instead of presenting a bare list as if it were everything.
+	AnalyzedQueries  int      `json:"analyzed_queries"`
+	AnalyzedTables   int      `json:"analyzed_tables"`
+	RegressionsFound int      `json:"regressions_found"`
+	Chains           []Chain  `json:"chains"`
+	Notes            []string `json:"notes,omitempty"`
 }
 
 const whySchemaVersion = "1.0.0"
@@ -77,7 +82,11 @@ func Analyze(samples []Sample, events []model.Event, opts Options) Report {
 		return r
 	}
 
+	r.AnalyzedQueries = len(queryIDs(samples))
+	r.AnalyzedTables = len(tableNames(samples))
+
 	chains := querySlowdownChains(samples, events)
+	r.RegressionsFound = len(chains)
 
 	sort.SliceStable(chains, func(i, j int) bool { return chains[i].impact > chains[j].impact })
 	max := opts.MaxChains
@@ -89,6 +98,25 @@ func Analyze(samples []Sample, events []model.Event, opts Options) Report {
 	}
 	r.Chains = chains
 	return r
+}
+
+// tableNames returns every qualified table seen in the samples.
+func tableNames(samples []Sample) []string {
+	seen := map[string]bool{}
+	var out []string
+	for _, s := range samples {
+		if s.C.Tables == nil {
+			continue
+		}
+		for _, t := range s.C.Tables.Top {
+			q := t.Schema + "." + t.Name
+			if !seen[q] {
+				seen[q] = true
+				out = append(out, q)
+			}
+		}
+	}
+	return out
 }
 
 // querySlowdownChains is mechanism rule 1: a query's interval mean shifted up;

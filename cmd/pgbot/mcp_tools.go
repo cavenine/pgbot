@@ -268,7 +268,7 @@ func whyTool(_ context.Context, args json.RawMessage) (string, error) {
 	if a.WindowSeconds > 0 {
 		window = time.Duration(a.WindowSeconds) * time.Second
 	}
-	report, err := computeWhy("", a.Fingerprint, window)
+	report, err := computeWhy("", a.Fingerprint, window, 3)
 	if err != nil {
 		return "", err
 	}

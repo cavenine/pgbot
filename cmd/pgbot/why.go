@@ -15,6 +15,7 @@ type whyFlags struct {
 	window      time.Duration
 	fingerprint string
 	storePath   string
+	maxChains   int
 	noColor     bool
 	json        bool
 }
@@ -43,6 +44,7 @@ func newWhyCmd() *cobra.Command {
 	fl.DurationVar(&f.window, "window", 7*24*time.Hour, "how far back to analyze")
 	fl.StringVar(&f.fingerprint, "fingerprint", "", "which database (fingerprint or a unique prefix); required if the store holds more than one")
 	fl.StringVar(&f.storePath, "store", "", "baseline DB path (default: XDG state dir)")
+	fl.IntVar(&f.maxChains, "max-chains", 3, "how many chains to report, worst first")
 	fl.BoolVar(&f.noColor, "no-color", false, "disable ANSI color")
 	fl.BoolVar(&f.json, "json", false, "emit the report as JSON (why_schema_version 1.0.0)")
 	return cmd
@@ -50,7 +52,7 @@ func newWhyCmd() *cobra.Command {
 
 // computeWhy opens the store, resolves the database, and runs the analysis —
 // shared by the command and the MCP tool.
-func computeWhy(storePath, fpSpec string, window time.Duration) (why.Report, error) {
+func computeWhy(storePath, fpSpec string, window time.Duration, maxChains int) (why.Report, error) {
 	st, err := store.Open(storePath)
 	if err != nil {
 		return why.Report{}, fmt.Errorf("open baseline store: %w", err)
@@ -81,11 +83,11 @@ func computeWhy(storePath, fpSpec string, window time.Duration) (why.Report, err
 	if err != nil { // events enrich antecedents; their absence must not block the analysis
 		events = nil
 	}
-	return why.Analyze(samples, events, why.Options{}), nil
+	return why.Analyze(samples, events, why.Options{MaxChains: maxChains}), nil
 }
 
 func runWhy(w io.Writer, f whyFlags) error {
-	report, err := computeWhy(f.storePath, f.fingerprint, f.window)
+	report, err := computeWhy(f.storePath, f.fingerprint, f.window, f.maxChains)
 	if err != nil {
 		return err
 	}
@@ -99,16 +101,28 @@ func runWhy(w io.Writer, f whyFlags) error {
 	return nil
 }
 
-// printWhy renders the narrative: one block per chain — the symptom line,
-// then each hop indented, then the hedged confidence.
+// printWhy renders the narrative and the context a first-time reader needs:
+// what was analyzed, how many regressions were found vs shown, one block per
+// chain (symptom, then hops), the hedged confidence, and a how-to-read legend.
 func printWhy(w io.Writer, r why.Report) {
-	fmt.Fprintf(w, "why · %s · %d snapshots · %s → %s\n\n",
+	fmt.Fprintf(w, "why · %s · %d snapshots · %s → %s\n",
 		r.Database, r.Snapshots, r.WindowStart.Format("Jan 2 15:04"), r.WindowEnd.Format("Jan 2 15:04"))
 	for _, note := range r.Notes {
 		fmt.Fprintf(w, "%s\n", note)
 	}
-	if len(r.Chains) == 0 && len(r.Notes) == 0 {
-		fmt.Fprintln(w, "✓ no sustained regressions found in the window — nothing to explain")
+	if r.Snapshots < 3 {
+		return // the note above already says what to do
+	}
+	fmt.Fprintf(w, "analyzed %d quer%s and %d table%s from your stored history — found %d sustained regression%s",
+		r.AnalyzedQueries, plural(r.AnalyzedQueries, "y", "ies"),
+		r.AnalyzedTables, plural(r.AnalyzedTables, "", "s"),
+		r.RegressionsFound, plural(r.RegressionsFound, "", "s"))
+	if r.RegressionsFound > len(r.Chains) {
+		fmt.Fprintf(w, " · showing the %d worst of %d (--max-chains for more)", len(r.Chains), r.RegressionsFound)
+	}
+	fmt.Fprint(w, "\n\n")
+	if len(r.Chains) == 0 {
+		fmt.Fprintln(w, "✓ nothing got measurably worse in the window — nothing to explain")
 		return
 	}
 	for _, ch := range r.Chains {
@@ -123,4 +137,15 @@ func printWhy(w io.Writer, r why.Report) {
 		}
 		fmt.Fprintln(w)
 	}
+	fmt.Fprintln(w, "how to read this: each block is one chain — what regressed ← the mechanism ← what set it off,")
+	fmt.Fprintln(w, "with the numbers and the time each shift started, computed from your snapshot history.")
+	fmt.Fprintln(w, "More history sharpens it: every `pgbot inspect` adds one snapshot.")
+}
+
+// plural picks the singular or plural suffix.
+func plural(n int, one, many string) string {
+	if n == 1 {
+		return one
+	}
+	return many
 }

@@ -196,3 +196,40 @@ func TestAnalyze_flatHistoryIsQuiet(t *testing.T) {
 		t.Errorf("flat history must be quiet, got %+v", r.Chains)
 	}
 }
+
+// The report must say what it analyzed and what it found BEFORE the cap, so
+// the renderer can tell the user "showing 3 of 7" instead of a bare list.
+func TestAnalyze_reportsScopeAndTotals(t *testing.T) {
+	r := Analyze(flagshipHistory(), nil, Options{})
+	if r.AnalyzedQueries != 1 || r.AnalyzedTables != 1 {
+		t.Errorf("scope counts wrong: queries=%d tables=%d", r.AnalyzedQueries, r.AnalyzedTables)
+	}
+	if r.RegressionsFound != 1 {
+		t.Errorf("RegressionsFound = %d, want 1", r.RegressionsFound)
+	}
+}
+
+// MaxChains caps what is REPORTED, never what is counted: with a cap of 1 on a
+// history holding two regressing queries, RegressionsFound stays 2.
+func TestAnalyze_capReportsTotalFound(t *testing.T) {
+	samples := history(6, func(i int, c *model.Context) {
+		calls := int64(1000 * (i + 1))
+		var totalMS float64
+		if i < 3 {
+			totalMS = 8 * float64(calls)
+		} else {
+			totalMS = 8*3000 + 26*float64(calls-3000)
+		}
+		c.Queries = &model.Queries{Enabled: true, TotalExecMS: 2 * totalMS, Top: []model.QueryStat{
+			{QueryID: 42, Query: "SELECT * FROM orders WHERE customer_id = $1", Calls: calls, TotalMS: totalMS},
+			{QueryID: 43, Query: "SELECT * FROM invoices WHERE due < $1", Calls: calls, TotalMS: totalMS},
+		}}
+	})
+	r := Analyze(samples, nil, Options{MaxChains: 1})
+	if len(r.Chains) != 1 {
+		t.Fatalf("cap must limit chains to 1, got %d", len(r.Chains))
+	}
+	if r.RegressionsFound != 2 {
+		t.Errorf("RegressionsFound = %d, want 2 (cap must not hide the total)", r.RegressionsFound)
+	}
+}
