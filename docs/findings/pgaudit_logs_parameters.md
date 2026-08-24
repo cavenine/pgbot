@@ -34,7 +34,7 @@ normalized query text with literals stripped, precisely to avoid this.
 ## How to verify it yourself
 
 ```sql
-SHOW pgaudit.log_parameter;
+SELECT setting FROM pg_settings WHERE name = 'pgaudit.log_parameter';
 ```
 
 Then read a few audit lines in the server log and confirm whether real

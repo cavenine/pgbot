@@ -34,8 +34,11 @@ works, nothing is recorded.
 
 ```sql
 SELECT extname FROM pg_extension WHERE extname = 'pgaudit';
-SHOW pgaudit.log;
+SELECT setting FROM pg_settings WHERE name = 'pgaudit.log';
 ```
+
+(`pg_settings` returns zero rows when the extension isn't loaded, where a
+`SHOW` would error.)
 
 If the extension row exists and `pgaudit.log` is empty or `none`, session
 auditing is off. Also check per-database and per-role overrides:

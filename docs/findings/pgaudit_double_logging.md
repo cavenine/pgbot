@@ -32,8 +32,8 @@ data files.
 ## How to verify it yourself
 
 ```sql
-SHOW pgaudit.log;
-SHOW log_statement;
+SELECT name, setting FROM pg_settings
+WHERE name IN ('pgaudit.log', 'log_statement');
 ```
 
 Then look at the server log: each statement appearing as both a `LOG:
