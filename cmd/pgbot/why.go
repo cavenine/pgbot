@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"strconv"
 	"time"
 
 	"github.com/pgrundev/pgbot/internal/store"
@@ -27,7 +28,7 @@ type whyFlags struct {
 func newWhyCmd() *cobra.Command {
 	var f whyFlags
 	cmd := &cobra.Command{
-		Use:   "why",
+		Use:   "why [count]",
 		Short: "Explain a regression from baseline history: symptom ← mechanism ← antecedent (offline)",
 		Long: "Builds per-object time series from the stored snapshots, finds sustained\n" +
 			"shifts, and connects them into causal chains — \"this query slowed 3.2×\n" +
@@ -35,8 +36,16 @@ func newWhyCmd() *cobra.Command {
 			"numbers and onset times for every hop. Deterministic: the chains are computed\n" +
 			"from Postgres's own counters across your history, never guessed. Runs offline\n" +
 			"from the local store; each `pgbot inspect` adds one snapshot of history.",
-		Args: cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, _ []string) error {
+		Args: cobra.MaximumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			// `pgbot why 10` is the ergonomic form of --max-chains=10.
+			if len(args) == 1 {
+				n, err := strconv.Atoi(args[0])
+				if err != nil || n < 1 {
+					return fmt.Errorf("the argument is how many chains to show, e.g. `pgbot why 10` — got %q", args[0])
+				}
+				f.maxChains = n
+			}
 			return runWhy(cmd.OutOrStdout(), f)
 		},
 	}
@@ -44,7 +53,7 @@ func newWhyCmd() *cobra.Command {
 	fl.DurationVar(&f.window, "window", 7*24*time.Hour, "how far back to analyze")
 	fl.StringVar(&f.fingerprint, "fingerprint", "", "which database (fingerprint or a unique prefix); required if the store holds more than one")
 	fl.StringVar(&f.storePath, "store", "", "baseline DB path (default: XDG state dir)")
-	fl.IntVar(&f.maxChains, "max-chains", 3, "how many chains to report, worst first")
+	fl.IntVar(&f.maxChains, "max-chains", 5, "how many chains to report, worst first (or pass it as the argument: `pgbot why 10`)")
 	fl.BoolVar(&f.noColor, "no-color", false, "disable ANSI color")
 	fl.BoolVar(&f.json, "json", false, "emit the report as JSON (why_schema_version 1.0.0)")
 	return cmd

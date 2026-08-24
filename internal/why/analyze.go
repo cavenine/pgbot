@@ -20,7 +20,7 @@ type Sample struct {
 
 // Options tunes an analysis.
 type Options struct {
-	MaxChains int // cap on reported chains; 0 = default 3
+	MaxChains int // cap on reported chains; 0 = default 5
 }
 
 // Hop is one link of a chain, with the numbers that justify it.
@@ -91,7 +91,7 @@ func Analyze(samples []Sample, events []model.Event, opts Options) Report {
 	sort.SliceStable(chains, func(i, j int) bool { return chains[i].impact > chains[j].impact })
 	max := opts.MaxChains
 	if max <= 0 {
-		max = 3
+		max = 5
 	}
 	if len(chains) > max {
 		chains = chains[:max]

@@ -158,8 +158,8 @@ func TestWhy_capIsAnnounced(t *testing.T) {
 		} else {
 			totalMS = 8*3000 + 26*float64(calls-3000)
 		}
-		top := make([]model.QueryStat, 0, 4)
-		for q := int64(0); q < 4; q++ { // four regressing queries, cap default 3
+		top := make([]model.QueryStat, 0, 7)
+		for q := int64(0); q < 7; q++ { // seven regressing queries, cap default 5
 			top = append(top, model.QueryStat{
 				QueryID: 100 + q, Query: "SELECT * FROM t" + string(rune('a'+q)) + " WHERE id = $1",
 				Calls: calls, TotalMS: totalMS,
@@ -177,11 +177,19 @@ func TestWhy_capIsAnnounced(t *testing.T) {
 	}
 	st.Close()
 	out := runWhyCmd(t, "--store", path, "--no-color")
-	if !strings.Contains(out, "showing the 3 worst of 4") || !strings.Contains(out, "--max-chains") {
-		t.Errorf("capped output must say showing-3-of-4 and name --max-chains:\n%s", out)
+	if !strings.Contains(out, "showing the 5 worst of 7") || !strings.Contains(out, "--max-chains") {
+		t.Errorf("capped output must say showing-5-of-7 and name --max-chains:\n%s", out)
 	}
 	all := runWhyCmd(t, "--store", path, "--no-color", "--max-chains", "10")
-	if c := strings.Count(all, "\u25cf "); c != 4 {
-		t.Errorf("--max-chains 10 must show all 4 chains, got %d:\n%s", c, all)
+	if c := strings.Count(all, "\u25cf "); c != 7 {
+		t.Errorf("--max-chains 10 must show all 7 chains, got %d:\n%s", c, all)
+	}
+	// `pgbot why N` — the positional count is the ergonomic form of --max-chains.
+	two := runWhyCmd(t, "--store", path, "--no-color", "2")
+	if c := strings.Count(two, "\u25cf "); c != 2 {
+		t.Errorf("`why 2` must show exactly 2 chains, got %d:\n%s", c, two)
+	}
+	if !strings.Contains(two, "showing the 2 worst of 7") {
+		t.Errorf("`why 2` must still announce the total:\n%s", two)
 	}
 }
