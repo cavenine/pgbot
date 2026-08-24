@@ -7,7 +7,17 @@ separately by `model.SchemaVersion` (currently 1.2.0).
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-08-24
+
 ### Fixed
+- **`pgbot why` polish from the first real-world runs.** Sub-millisecond means
+  no longer render as "0ms → 0ms" on a real slowdown (precision now scales
+  with magnitude: 0.04ms → 0.39ms) and tiny per-second rates keep their
+  significant digits; when the store holds history older than the window,
+  the too-few-snapshots message says how many more exist and names the
+  `--window` widening; and the pick-one database listing carries server
+  version, provider, and recency, so six databases all named "postgres"
+  are tellable apart (snapshots deliberately store no host).
 - **The recurring Windows npx-smoke false alarm was npx cache poisoning, not
   slow propagation.** A first attempt that runs before `@pgbot/win32-x64` has
   propagated caches the wrapper WITHOUT its platform optionalDependency, and
@@ -420,6 +430,7 @@ separately by `model.SchemaVersion` (currently 1.2.0).
   1.25.13, and golang.org/x/text to v0.39.0; `govulncheck` now runs in CI and
   reports no vulnerabilities.
 
+[0.5.1]: https://github.com/pgrundev/pgbot/releases/tag/v0.5.1
 [0.5.0]: https://github.com/pgrundev/pgbot/releases/tag/v0.5.0
 [0.4.3]: https://github.com/pgrundev/pgbot/releases/tag/v0.4.3
 [0.4.2]: https://github.com/pgrundev/pgbot/releases/tag/v0.4.2
