@@ -2,6 +2,7 @@ package store
 
 import (
 	"bytes"
+	"encoding/json"
 	"path/filepath"
 	"testing"
 	"time"
@@ -422,4 +423,47 @@ func TestEnforceSizeCap_neverDeletesLastRow(t *testing.T) {
 	if n != 1 {
 		t.Errorf("an unreachable cap must not delete the last snapshot, got %d rows", n)
 	}
+}
+
+// LoadRange returns the fingerprint's snapshots inside the window, oldest
+// first, with decoded contexts — the input the why-engine's series builder
+// walks. Other fingerprints and older rows stay out.
+func TestLoadRange(t *testing.T) {
+	st := tempStore(t)
+	now := time.Now().UTC()
+	save := func(fp string, age time.Duration, db string) {
+		c := &model.Context{Server: model.ServerInfo{Database: db}}
+		if _, err := st.db.Exec(
+			`INSERT INTO snapshots (fingerprint, collected_at, schema_version, context_json) VALUES (?, ?, ?, ?)`,
+			fp, now.Add(-age).Unix(), model.SchemaVersion, mustJSON(t, c)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	save("db1", 9*24*time.Hour, "too-old")
+	save("db1", 3*24*time.Hour, "in-window-a")
+	save("db1", 1*24*time.Hour, "in-window-b")
+	save("db2", 1*time.Hour, "other-fingerprint")
+
+	snaps, err := st.LoadRange("db1", now.Add(-7*24*time.Hour))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(snaps) != 2 {
+		t.Fatalf("expected the 2 in-window snapshots, got %d", len(snaps))
+	}
+	if !snaps[0].CollectedAt.Before(snaps[1].CollectedAt) {
+		t.Error("snapshots must come back oldest first")
+	}
+	if snaps[0].Context == nil || snaps[0].Context.Server.Database != "in-window-a" {
+		t.Errorf("contexts must be decoded, got %+v", snaps[0].Context)
+	}
+}
+
+func mustJSON(t *testing.T, c *model.Context) string {
+	t.Helper()
+	b, err := json.Marshal(c)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(b)
 }

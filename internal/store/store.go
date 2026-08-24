@@ -159,6 +159,37 @@ func (s *Store) Trend(fingerprint, column string, n int) ([]float64, error) {
 	return vals, rows.Err()
 }
 
+// LoadRange returns the fingerprint's snapshots newer than since, oldest
+// first, contexts decoded — the input the why-engine's series builder walks.
+func (s *Store) LoadRange(fingerprint string, since time.Time) ([]Snapshot, error) {
+	rows, err := s.db.Query(`SELECT id, fingerprint, collected_at, context_json
+		FROM snapshots WHERE fingerprint = ? AND collected_at >= ?
+		ORDER BY collected_at ASC`, fingerprint, since.Unix())
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []Snapshot
+	for rows.Next() {
+		var (
+			snap Snapshot
+			unix int64
+			raw  string
+		)
+		if err := rows.Scan(&snap.ID, &snap.Fingerprint, &unix, &raw); err != nil {
+			return nil, err
+		}
+		snap.CollectedAt = time.Unix(unix, 0).UTC()
+		var c model.Context
+		if err := json.Unmarshal([]byte(raw), &c); err != nil {
+			return nil, err
+		}
+		snap.Context = &c
+		out = append(out, snap)
+	}
+	return out, rows.Err()
+}
+
 func (s *Store) one(q string, args ...any) (*Snapshot, error) {
 	var (
 		snap Snapshot
