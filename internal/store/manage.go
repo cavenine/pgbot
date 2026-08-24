@@ -3,6 +3,7 @@ package store
 import (
 	"encoding/json"
 	"io"
+	"strings"
 	"time"
 )
 
@@ -10,6 +11,8 @@ import (
 type ListItem struct {
 	Fingerprint string
 	Database    string
+	Version     string // major.minor from the latest snapshot, e.g. "17.4"
+	Provider    string // detected managed platform of the latest snapshot
 	Count       int
 	Oldest      time.Time
 	Newest      time.Time
@@ -45,25 +48,40 @@ func (s *Store) List() ([]ListItem, error) {
 	rows.Close() // release the connection before the per-fingerprint lookups
 
 	for i := range out {
-		out[i].Database = s.latestDatabaseName(out[i].Fingerprint)
+		out[i].Database, out[i].Version, out[i].Provider = s.latestIdentity(out[i].Fingerprint)
 	}
 	return out, nil
 }
 
-func (s *Store) latestDatabaseName(fp string) string {
+// latestIdentity pulls the display identity from the newest snapshot: database
+// name, the parsed server version, and the detected provider. Six databases
+// all named "postgres" are told apart by version, provider, and recency —
+// snapshots deliberately store no host.
+func (s *Store) latestIdentity(fp string) (db, version, provider string) {
 	var raw string
 	if err := s.db.QueryRow(
 		`SELECT context_json FROM snapshots WHERE fingerprint = ? ORDER BY collected_at DESC LIMIT 1`, fp,
 	).Scan(&raw); err != nil {
-		return ""
+		return "", "", ""
 	}
 	var probe struct {
 		Server struct {
-			Database string `json:"database"`
+			Database    string `json:"database"`
+			VersionText string `json:"version_text"`
+			Provider    string `json:"provider"`
 		} `json:"server"`
 	}
 	_ = json.Unmarshal([]byte(raw), &probe)
-	return probe.Server.Database
+	return probe.Server.Database, parseVersion(probe.Server.VersionText), probe.Server.Provider
+}
+
+// parseVersion extracts "17.4" from "PostgreSQL 17.4 on aarch64-…".
+func parseVersion(text string) string {
+	fields := strings.Fields(text)
+	if len(fields) >= 2 && fields[0] == "PostgreSQL" {
+		return strings.TrimRight(fields[1], ",")
+	}
+	return ""
 }
 
 // Prune deletes all snapshots for a fingerprint (user-initiated). Returns rows

@@ -467,3 +467,23 @@ func mustJSON(t *testing.T, c *model.Context) string {
 	}
 	return string(b)
 }
+
+// List must carry enough identity to disambiguate six databases all named
+// "postgres": the latest snapshot's server version and provider ride along.
+func TestList_carriesVersionAndProvider(t *testing.T) {
+	st := tempStore(t)
+	c := &model.Context{
+		Fingerprint: "neonfp", CollectedAt: time.Now().UTC(), SchemaVersion: model.SchemaVersion,
+		Server: model.ServerInfo{Database: "postgres", VersionText: "PostgreSQL 17.4 on aarch64-unknown-linux-gnu, compiled by gcc", Provider: "neon"},
+	}
+	if _, err := st.Save(c); err != nil {
+		t.Fatal(err)
+	}
+	items, err := st.List()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(items) != 1 || items[0].Version != "17.4" || items[0].Provider != "neon" {
+		t.Fatalf("List must surface version+provider, got %+v", items)
+	}
+}

@@ -70,3 +70,19 @@ func TestDiffReport_flagsIntervalSubstitution(t *testing.T) {
 		t.Errorf("must flag that 24h was requested but 31h compared:\n%s", s)
 	}
 }
+
+// Six databases all named "postgres" must still be tellable apart: the
+// disambiguation listing carries version, provider, and recency alongside
+// the name — the identity the store has, given snapshots hold no host.
+func TestListDatabases_disambiguatesSameName(t *testing.T) {
+	now := time.Now().UTC()
+	out := listDatabases([]store.ListItem{
+		{Fingerprint: "d1531628fd9c58aa", Database: "postgres", Version: "17.4", Provider: "neon", Count: 26, Newest: now.Add(-2 * time.Hour)},
+		{Fingerprint: "7c7c3ef0d65cbb00", Database: "postgres", Version: "15.12", Count: 11, Newest: now.Add(-3 * 24 * time.Hour)},
+	})
+	for _, want := range []string{"17.4", "neon", "15.12", "2h ago", "3d ago"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("listing missing %q:\n%s", want, out)
+		}
+	}
+}

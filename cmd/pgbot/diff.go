@@ -169,10 +169,24 @@ func resolveFingerprint(items []store.ListItem, spec string) (store.ListItem, er
 	}
 }
 
+// listDatabases renders the pick-one listing. Six databases can all be named
+// "postgres" (snapshots deliberately store no host), so the line carries the
+// rest of the identity the store has: server version, provider, and recency.
 func listDatabases(items []store.ListItem) string {
 	var b strings.Builder
 	for _, it := range items {
-		fmt.Fprintf(&b, "  %-14s %s (%d snapshots)\n", it.Fingerprint[:min(14, len(it.Fingerprint))], it.Database, it.Count)
+		fmt.Fprintf(&b, "  %-14s %s (%d snapshots", it.Fingerprint[:min(14, len(it.Fingerprint))], it.Database, it.Count)
+		if !it.Newest.IsZero() {
+			fmt.Fprintf(&b, ", last %s", agoStr(&it.Newest))
+		}
+		b.WriteString(")")
+		if it.Version != "" {
+			fmt.Fprintf(&b, " · postgres %s", it.Version)
+		}
+		if it.Provider != "" && it.Provider != "unknown" {
+			fmt.Fprintf(&b, " · %s", it.Provider)
+		}
+		b.WriteString("\n")
 	}
 	return b.String()
 }
