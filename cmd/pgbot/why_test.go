@@ -193,3 +193,35 @@ func TestWhy_capIsAnnounced(t *testing.T) {
 		t.Errorf("`why 2` must still announce the total:\n%s", two)
 	}
 }
+
+// "Only 2 snapshots" while the store visibly holds 26 reads as a bug. When
+// history exists OUTSIDE the window, the guidance must say so and name
+// --window, not just ask for more inspect runs.
+func TestWhy_windowTruncationIsExplained(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "baselines.db")
+	st, err := store.Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	now := time.Now().UTC()
+	save := func(age time.Duration) {
+		c := &model.Context{
+			Fingerprint: "trunc", CollectedAt: now.Add(-age), SchemaVersion: model.SchemaVersion,
+			Server: model.ServerInfo{Database: "app"},
+		}
+		if _, err := st.Save(c); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for i := 0; i < 24; i++ { // plenty of history, all older than the window
+		save(time.Duration(10+i) * 24 * time.Hour)
+	}
+	save(5 * 24 * time.Hour) // only two inside the default 7 days
+	save(4 * 24 * time.Hour)
+	st.Close()
+
+	out := runWhyCmd(t, "--store", path, "--no-color")
+	if !strings.Contains(out, "24 more snapshot") || !strings.Contains(out, "--window") {
+		t.Errorf("window truncation must be named with the --window fix:\n%s", out)
+	}
+}

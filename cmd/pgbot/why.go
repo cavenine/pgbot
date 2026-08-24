@@ -92,7 +92,15 @@ func computeWhy(storePath, fpSpec string, window time.Duration, maxChains int) (
 	if err != nil { // events enrich antecedents; their absence must not block the analysis
 		events = nil
 	}
-	return why.Analyze(samples, events, why.Options{MaxChains: maxChains}), nil
+	report := why.Analyze(samples, events, why.Options{MaxChains: maxChains})
+	// "Only 2 snapshots" while the listing said 26 reads as a bug: when the
+	// store holds history the window cut off, say so and name the fix.
+	if older := item.Count - len(samples); older > 0 && len(samples) < 3 {
+		report.Notes = append(report.Notes, fmt.Sprintf(
+			"the store holds %d more snapshot(s) for this database older than the %s window — widen it to reach them, e.g. --window %dh",
+			older, window, int(window.Hours())*4))
+	}
+	return report, nil
 }
 
 func runWhy(w io.Writer, f whyFlags) error {
