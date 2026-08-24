@@ -100,3 +100,32 @@ func TestIntegration_mcpTools(t *testing.T) {
 		t.Errorf("schema_of should return columns + row estimate:\n%s", out[:min(400, len(out))])
 	}
 }
+
+// The why tool returns the versioned causal-chain report from the local store,
+// no connection — same offline contract as compare_to_baseline.
+func TestWhyTool(t *testing.T) {
+	t.Setenv("XDG_STATE_HOME", t.TempDir())
+	seedWhyFixture(t) // writes the flagship regression history into the default store
+	out, err := whyTool(context.Background(), json.RawMessage(`{"window_seconds": 604800}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var r struct {
+		SchemaVersion string `json:"why_schema_version"`
+		Chains        []struct {
+			Symptom struct {
+				Text string `json:"text"`
+			} `json:"symptom"`
+		} `json:"chains"`
+		Note string `json:"note"`
+	}
+	if err := json.Unmarshal([]byte(out), &r); err != nil {
+		t.Fatalf("not valid JSON: %v\n%s", err, out)
+	}
+	if r.SchemaVersion != "1.0.0" || len(r.Chains) == 0 {
+		t.Fatalf("expected a versioned report with the orders chain, got %s", out)
+	}
+	if r.Note == "" {
+		t.Error("the tool must carry its caveat note for the agent")
+	}
+}

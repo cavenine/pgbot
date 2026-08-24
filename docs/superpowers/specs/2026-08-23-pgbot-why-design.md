@@ -106,3 +106,16 @@ store already has), provider log/API access, AI anything.
 - Stats resets: `diff.StatsResetBetween` logic informs the counter-reset split.
 - Snapshot cadence is irregular (user-driven): all rates are per-second over
   actual intervals; onsets report wall-clock times.
+
+## Implementation deviations (v1, 2026-08-24)
+
+- `why` is fully offline, following the repo's `diff` convention — no DSN, no
+  `--offline` flag. The store already holds a fresh snapshot from the user's
+  last inspect, so connecting added a failure mode without adding signal.
+- v1 ships mechanism rule 1 (query slowdown ← seq-scan surge ← growth /
+  index-dropped). Rules 2 (cache-hit collapse), 3 (bloat chain), 4 (config
+  antecedent), and 5 (replica lag ← WAL surge) are follow-ups on the same
+  engine; the onset detector already supports the downward/absolute mode
+  rule 2 needs.
+- No `target` argument yet — the report caps at the 3 worst chains, which
+  covers the v1 need; focusing arrives with the rule expansions.

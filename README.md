@@ -223,6 +223,7 @@ or `$PGBOT_DATABASE_URL`.
 | `lint` | schema-only check, safe on an empty CI database (`inspect --profile=schema --no-store`) |
 | `init` | generate the read-only role setup SQL — nothing is executed (`--verify` checks an existing role) |
 | `diff` | compare two baseline snapshots offline |
+| `why` | explain a regression from baseline history: symptom ← mechanism ← antecedent, with numbers and onset times (offline) |
 | `indexes` · `queries` · `tables` · `vacuum` | drill into one signal |
 | `advise` | planner-validated missing-index suggestions (needs hypopg) |
 | `ask "…"` · `explain` | a plain-language AI reading of the same deterministic findings |
@@ -929,8 +930,9 @@ timeout so the statistics survive between runs.
   on your own hardware, a future agent-on-host will read them.
 - **AI is optional and explain-only.** `pgbot explain` can put a plain-language
   explanation on top of the findings (see above), but the findings themselves are
-  always computed deterministically in Go — no model ever generates one. Deeper
-  correlation (`pgbot why`) is still future work.
+  always computed deterministically in Go — no model ever generates one. The same
+  holds for `pgbot why`: its causal chains are computed from your stored snapshot
+  history, never guessed.
 - **pgbot never writes.** It recommends indexes; it doesn't create them.
 
 ## Troubleshooting

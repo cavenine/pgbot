@@ -131,6 +131,23 @@ func pgbotTools() []mcp.Tool {
 			Handler: compareToBaselineTool,
 		},
 		{
+			Name: "why",
+			Description: "Explain a regression from stored baseline history: causal chains — symptom ← " +
+				"mechanism ← antecedent (e.g. a query slowed BECAUSE seq scans surged on a table it reads " +
+				"AFTER the table grew) — with the numbers and onset times for every hop. Computed " +
+				"deterministically from snapshot history in the local store; no connection is made. " +
+				"Needs at least 3 stored snapshots (each inspect adds one). Confidence below 0.5 is a " +
+				"possibility, not a diagnosis.",
+			InputSchema: map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"fingerprint":    map[string]any{"type": "string", "description": "Which database (fingerprint or unique prefix). Required if the store holds more than one."},
+					"window_seconds": map[string]any{"type": "integer", "description": "How far back to analyze, in seconds (default 604800 = 7 days)."},
+				},
+			},
+			Handler: whyTool,
+		},
+		{
 			Name: "schema_of",
 			Description: "Return a table's structure — columns (name/type/nullability), indexes, constraints, " +
 				"and the planner's row estimate. NO table data is read. This is what an agent needs before " +

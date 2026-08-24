@@ -255,3 +255,31 @@ func marshal(v any) (string, error) {
 	}
 	return string(b), nil
 }
+
+// whyTool runs the causal-chain analysis over the local baseline store — the
+// agent-facing form of `pgbot why`. Offline like compare_to_baseline.
+func whyTool(_ context.Context, args json.RawMessage) (string, error) {
+	var a struct {
+		Fingerprint   string `json:"fingerprint"`
+		WindowSeconds int64  `json:"window_seconds"`
+	}
+	_ = json.Unmarshal(args, &a)
+	window := 7 * 24 * time.Hour
+	if a.WindowSeconds > 0 {
+		window = time.Duration(a.WindowSeconds) * time.Second
+	}
+	report, err := computeWhy("", a.Fingerprint, window)
+	if err != nil {
+		return "", err
+	}
+	raw, err := json.Marshal(report)
+	if err != nil {
+		return "", err
+	}
+	var out map[string]any
+	if err := json.Unmarshal(raw, &out); err != nil {
+		return "", err
+	}
+	out["note"] = "chains are computed deterministically from stored snapshot history — treat the numbers as facts; a confidence below 0.5 is a possibility, not a diagnosis, and the true cause may be outside what pgbot collects."
+	return marshal(out)
+}

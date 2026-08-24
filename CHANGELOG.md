@@ -8,6 +8,23 @@ separately by `model.SchemaVersion` (currently 1.2.0).
 ## [Unreleased]
 
 ### Added
+- **`pgbot why` — deterministic root-cause chains from baseline history.** The
+  correlation feature the roadmap promised: per-object time series over the
+  stored snapshots (each `inspect` adds one), sustained-shift onset detection,
+  and explicit mechanism rules connecting a symptom to its cause — *"query 42
+  slowed 3.2× — mean 8ms → 26ms per call · because seq scans on public.orders
+  surged 0.1 → 50 per second · after the table grew 18%"* — with the numbers
+  and onset times on every hop. v1 ships the query-slowdown rule: interval
+  mean (ΔTotalMS/ΔCalls, honest where pg_stat_statements' lifetime mean
+  dilutes fresh regressions) mechanized by a seq-scan surge on a referenced
+  table, with table-growth and index-dropped antecedents. Temporal discipline
+  is a hard gate (a cause whose onset follows the symptom never chains);
+  confidence comes from onset alignment, antecedents, and magnitude, and
+  anything below 0.5 is worded as a possibility. Fully offline, like `diff`;
+  needs ≥3 snapshots and says exactly what to run when it has fewer. `--json`
+  emits a separately versioned report (`why_schema_version: 1.0.0`); the MCP
+  server gains a matching `why` tool. Counter resets split series rather than
+  fabricating rates; missing top-N entries are gaps, never interpolated.
 - **pgaudit posture findings.** When the pgaudit extension is installed, pgbot
   grades its configuration (pgbot cannot read the audit trail itself — it lives
   in the server log — but every knob that decides whether the trail exists is
