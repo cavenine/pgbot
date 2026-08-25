@@ -7,6 +7,20 @@ separately by `model.SchemaVersion` (currently 1.2.0).
 
 ## [Unreleased]
 
+### Added
+- **PgDog poolers are identified behaviorally, never by hostname** (#22). The
+  connect probe now sets the `pgdog.shard` routing hint session-level alongside
+  a control GUC and reads both back: PgDog consumes `pgdog.*` hints instead of
+  forwarding them, so a vanished hint with an intact control can only be PgDog
+  — on any hostname and port (verified against PgDog v0.1.54). The control
+  keeps a PgBouncer backend switch from ever reading as a false PgDog.
+
+### Fixed
+- **Hosts containing `-pooler` are no longer labeled "a Neon pooled
+  endpoint" unless they are on Neon's own domain** (#22). PgDog and
+  self-hosted poolers reuse the `-pooler` naming convention; those endpoints
+  still count as a pooler signal but now carry the generic label.
+
 ## [0.5.1] - 2026-08-24
 
 ### Fixed

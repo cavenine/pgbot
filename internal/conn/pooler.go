@@ -64,7 +64,61 @@ func detectPooler(ctx context.Context, c *pgx.Conn, cc *pgx.ConnConfig) PoolerIn
 	if info.SimpleProtocol || isKnownPoolerEndpoint(cc) {
 		info.Detected = true
 	}
+
+	// (3) PgDog identification (issue #22) — behavioral, never hostname-based.
+	// PgDog consumes SET pgdog.* routing hints instead of forwarding them, so a
+	// SET LOCAL that vanishes within its own transaction can only mean PgDog.
+	if detectPgDog(ctx, c) {
+		info.Detected = true
+		info.Hint = "a PgDog pooler"
+	}
 	return info
+}
+
+// detectPgDog probes for PgDog by setting the pgdog.shard routing hint and
+// reading it back. PgDog intercepts session-level SET pgdog.* and does not
+// forward it, so the backend never sees the value; on real PostgreSQL the
+// dotted name is stored as a placeholder GUC and echoes back. A control GUC
+// (pgbot.probe) set the same way rules out the transaction-pooler false
+// positive: if PgBouncer split the two round trips across backends, the control
+// vanishes too and the probe reads inconclusive, not PgDog.
+//
+// Verified against PgDog v0.1.54: only SESSION-level SET is intercepted (SET
+// LOCAL inside an explicit transaction is forwarded verbatim), and shard 0
+// exists in every deployment. pgdog.sharding_key must never be used here — on
+// some configs it errors and poisons the session for every later statement.
+func detectPgDog(ctx context.Context, c *pgx.Conn) bool {
+	want := fmt.Sprintf("pgbot_%d", nonce())
+	if _, err := c.Exec(ctx, "SET pgbot.probe = '"+want+"'"); err != nil {
+		return false
+	}
+	if _, err := c.Exec(ctx, "SET pgdog.shard = 0"); err != nil {
+		_, _ = c.Exec(ctx, "SET pgbot.probe TO DEFAULT")
+		return false
+	}
+	var control, shard *string
+	err := c.QueryRow(ctx,
+		"SELECT current_setting('pgbot.probe', true), current_setting('pgdog.shard', true)",
+		pgx.QueryExecModeSimpleProtocol).Scan(&control, &shard)
+	// Clean up with SET … TO DEFAULT, never RESET: SET of a dotted name is
+	// accepted even by a backend that never saw the parameter, while RESET
+	// errors there — and pgbot must not book server errors it would then report.
+	_, _ = c.Exec(ctx, "SET pgdog.shard TO DEFAULT")
+	_, _ = c.Exec(ctx, "SET pgbot.probe TO DEFAULT")
+	return err == nil && pgdogVerdict(control, shard, want)
+}
+
+// pgdogVerdict decides from the two readbacks. The control must echo the nonce
+// — otherwise the SETs demonstrably didn't reach the backend that answered
+// (transaction-pooler backend switch) and the probe is inconclusive. With the
+// control confirmed, anything but the exact value we set means pgdog.shard was
+// intercepted en route: NULL on a fresh backend, or a leftover empty
+// placeholder on a pooled server connection another client touched.
+func pgdogVerdict(control, shard *string, want string) bool {
+	if control == nil || *control != want {
+		return false
+	}
+	return shard == nil || *shard != "0"
 }
 
 func isKnownPoolerEndpoint(cc *pgx.ConnConfig) bool {
@@ -74,7 +128,9 @@ func isKnownPoolerEndpoint(cc *pgx.ConnConfig) bool {
 func poolerHint(cc *pgx.ConnConfig) string {
 	host := strings.ToLower(cc.Host)
 	switch {
-	case strings.Contains(host, "-pooler"):
+	// "-pooler" alone is not Neon (issue #22): PgDog and self-hosted poolers
+	// reuse the naming convention. Only Neon's own domain earns the Neon label.
+	case strings.Contains(host, "-pooler") && strings.Contains(host, "neon.tech"):
 		return "a Neon pooled endpoint"
 	case cc.Port == 6543:
 		return "the Supabase transaction pooler (port 6543)"
@@ -99,6 +155,7 @@ func (p PoolerInfo) StrictMessage() string {
 Use the direct connection endpoint instead:
   Neon      → the host without "-pooler"
   Supabase  → port 5432, not 6543
+  PgDog     → connect to Postgres directly
   PgBouncer → session mode, or connect to Postgres directly`, p.Hint)
 }
 
