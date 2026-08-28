@@ -44,7 +44,11 @@ version="${PGBOT_VERSION:-}"
 # empty value. (The GitHub Action passes latest by default.)
 if [ -z "$version" ] || [ "$version" = "latest" ]; then
   api="https://api.github.com/repos/$REPO/releases/latest"
-  version="$(fetch "$api" /dev/stdout | grep -m1 '"tag_name"' | cut -d'"' -f4)"
+  # Buffer the response before parsing: grep -m1 exits at the first match,
+  # which hands curl an EPIPE and puts a scary-but-harmless
+  # "curl: (23) Failure writing output" onto the installer's output.
+  release_json="$(fetch "$api" /dev/stdout)" || release_json=""
+  version="$(printf '%s' "$release_json" | grep -m1 '"tag_name"' | cut -d'"' -f4)"
   [ -n "$version" ] || die "could not determine latest version; set PGBOT_VERSION"
 fi
 ver="${version#v}"
