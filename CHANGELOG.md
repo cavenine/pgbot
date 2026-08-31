@@ -7,6 +7,8 @@ separately by `model.SchemaVersion` (currently 1.2.0).
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-08-31
+
 ### Added
 - **`pgbot logs` — the server log over SQL, typed and self-aware
   (experimental).** `pgbot logs` prints the newest 100 entries (`--last N` to
@@ -459,6 +461,7 @@ separately by `model.SchemaVersion` (currently 1.2.0).
   1.25.13, and golang.org/x/text to v0.39.0; `govulncheck` now runs in CI and
   reports no vulnerabilities.
 
+[0.6.0]: https://github.com/pgrundev/pgbot/releases/tag/v0.6.0
 [0.5.1]: https://github.com/pgrundev/pgbot/releases/tag/v0.5.1
 [0.5.0]: https://github.com/pgrundev/pgbot/releases/tag/v0.5.0
 [0.4.3]: https://github.com/pgrundev/pgbot/releases/tag/v0.4.3
