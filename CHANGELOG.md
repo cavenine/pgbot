@@ -7,6 +7,8 @@ separately by `model.SchemaVersion` (currently 1.2.0).
 
 ## [Unreleased]
 
+## [0.6.1] - 2026-08-31
+
 ### Added
 - **`pgbot logs --follow` / `-f`** — a true alias for `--live`, bound to the
   same variable, because `tail -f` muscle memory deserves to work.
@@ -465,6 +467,7 @@ separately by `model.SchemaVersion` (currently 1.2.0).
   1.25.13, and golang.org/x/text to v0.39.0; `govulncheck` now runs in CI and
   reports no vulnerabilities.
 
+[0.6.1]: https://github.com/pgrundev/pgbot/releases/tag/v0.6.1
 [0.6.0]: https://github.com/pgrundev/pgbot/releases/tag/v0.6.0
 [0.5.1]: https://github.com/pgrundev/pgbot/releases/tag/v0.5.1
 [0.5.0]: https://github.com/pgrundev/pgbot/releases/tag/v0.5.0
