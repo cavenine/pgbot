@@ -7,6 +7,15 @@ separately by `model.SchemaVersion` (currently 1.2.0).
 
 ## [Unreleased]
 
+## [0.6.3] - 2026-08-31
+
+### Added
+- **`pgbot init` now covers the `pgbot logs` grant** — commented out by
+  default (it is one privilege beyond pg_monitor, so opting in stays a
+  visible act), emitted active with `pgbot init --logs`. The statement text
+  is shared with the runtime's missing-grant hint, so the two can never
+  drift apart.
+
 ## [0.6.2] - 2026-08-31
 
 ### Fixed
@@ -477,6 +486,7 @@ separately by `model.SchemaVersion` (currently 1.2.0).
   1.25.13, and golang.org/x/text to v0.39.0; `govulncheck` now runs in CI and
   reports no vulnerabilities.
 
+[0.6.3]: https://github.com/pgrundev/pgbot/releases/tag/v0.6.3
 [0.6.2]: https://github.com/pgrundev/pgbot/releases/tag/v0.6.2
 [0.6.1]: https://github.com/pgrundev/pgbot/releases/tag/v0.6.1
 [0.6.0]: https://github.com/pgrundev/pgbot/releases/tag/v0.6.0

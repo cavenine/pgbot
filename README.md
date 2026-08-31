@@ -810,6 +810,8 @@ needs a single extra grant, printed exactly when it's missing:
 GRANT EXECUTE ON FUNCTION pg_read_binary_file(text, bigint, bigint, boolean) TO pgbot_ro;
 ```
 
+(`pgbot init` includes it commented out; `pgbot init --logs` emits it active.)
+
 A server without a log collector (`logging_collector=off` — the Docker image
 default) has no file to read; pgbot says so and points you at `docker logs`.
 Managed providers that keep logs behind their own APIs (Neon, Supabase) are out
