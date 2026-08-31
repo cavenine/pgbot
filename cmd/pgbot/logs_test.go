@@ -115,8 +115,14 @@ func TestJSONLineIsScrubbed(t *testing.T) {
 // tailing for queries otherwise stares at checkpoints wondering where the
 // logs went.
 func TestQueryLoggingNote(t *testing.T) {
-	if n := queryLoggingNote("-1", "none"); !strings.Contains(n, "log_min_duration_statement") {
+	n := queryLoggingNote("-1", "none")
+	if !strings.Contains(n, "log_min_duration_statement") {
 		t.Errorf("off must produce a hint naming the setting: %q", n)
+	}
+	// Managed servers (allow_alter_system=off, RDS parameter groups) reject
+	// ALTER SYSTEM — the note must carry the unblocked fallback.
+	if !strings.Contains(n, "ALTER DATABASE") {
+		t.Errorf("note must include the managed-server fallback: %q", n)
 	}
 	if n := queryLoggingNote("100ms", "none"); n != "" {
 		t.Errorf("min-duration logging active — no note: %q", n)

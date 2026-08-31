@@ -207,7 +207,9 @@ func queryLoggingNote(minDuration, logStatement string) string {
 	}
 	return "note: this server logs no query lines (log_min_duration_statement=-1, log_statement=none) —\n" +
 		"      only errors, checkpoints, and connections will appear. To log slow queries:\n" +
-		"      ALTER SYSTEM SET log_min_duration_statement = '100ms'; SELECT pg_reload_conf();"
+		"      ALTER SYSTEM SET log_min_duration_statement = '100ms'; SELECT pg_reload_conf();\n" +
+		"      (managed servers may block ALTER SYSTEM; then, applying to new sessions:\n" +
+		"       ALTER DATABASE <yourdb> SET log_min_duration_statement = '100ms';)"
 }
 
 // parseLevels turns "warn,error" into a set; empty means every level.
