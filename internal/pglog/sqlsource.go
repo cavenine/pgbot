@@ -15,7 +15,7 @@ type RowQuerier interface {
 	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
 }
 
-// ErrNoCollector: the server writes no logfile pgbot can address —
+// ErrNoCollector means the server writes no logfile pgbot can address —
 // logging_collector is off (Docker images default to plain container stderr).
 var ErrNoCollector = errors.New(
 	"the server has no log collector: pg_current_logfile() is empty (logging_collector=off).\n" +
