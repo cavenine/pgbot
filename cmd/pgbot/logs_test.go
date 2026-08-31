@@ -110,3 +110,21 @@ func TestJSONLineIsScrubbed(t *testing.T) {
 		t.Errorf("NDJSON line must be single-line: %q", line)
 	}
 }
+
+// When the server isn't logging statements, the header must say so — a user
+// tailing for queries otherwise stares at checkpoints wondering where the
+// logs went.
+func TestQueryLoggingNote(t *testing.T) {
+	if n := queryLoggingNote("-1", "none"); !strings.Contains(n, "log_min_duration_statement") {
+		t.Errorf("off must produce a hint naming the setting: %q", n)
+	}
+	if n := queryLoggingNote("100ms", "none"); n != "" {
+		t.Errorf("min-duration logging active — no note: %q", n)
+	}
+	if n := queryLoggingNote("-1", "all"); n != "" {
+		t.Errorf("log_statement=all — no note: %q", n)
+	}
+	if n := queryLoggingNote("", ""); n != "" {
+		t.Errorf("unknown settings (no permission) — stay quiet: %q", n)
+	}
+}

@@ -121,7 +121,16 @@ func runLogs(cmd *cobra.Command, args []string, f logsFlags) error {
 		if f.live {
 			mode += " · live (Ctrl+C to stop)"
 		}
-		fmt.Printf("%s · %s · %s\n\n", st.Head("pgbot logs"), st.Dim(pos.Name), st.Dim(mode))
+		fmt.Printf("%s · %s · %s\n", st.Head("pgbot logs"), st.Dim(pos.Name), st.Dim(mode))
+		// Best-effort: unreadable settings just skip the note.
+		var minDur, logStmt string
+		_ = target.Pool.QueryRow(ctx,
+			"SELECT current_setting('log_min_duration_statement'), current_setting('log_statement')").
+			Scan(&minDur, &logStmt)
+		if note := queryLoggingNote(minDur, logStmt); note != "" {
+			fmt.Println(st.Dim(note))
+		}
+		fmt.Println()
 	}
 	emit := func(e pglog.Entry) error {
 		if !keep(e) {
@@ -186,6 +195,19 @@ func isSelfLogEntryForUser(e pglog.Entry, ownPIDs map[int]bool, user string) boo
 	return user != "" &&
 		strings.HasPrefix(e.Message, "connection authenticated: ") &&
 		strings.Contains(e.Message, `identity="`+user+`"`)
+}
+
+// queryLoggingNote explains an all-noise stream: with log_min_duration_statement
+// = -1 and log_statement = none the server writes no query lines at all, and a
+// user tailing for queries stares at checkpoints wondering where the logs went.
+// Empty settings (couldn't read them) stay quiet rather than guess.
+func queryLoggingNote(minDuration, logStatement string) string {
+	if minDuration != "-1" || logStatement != "none" {
+		return ""
+	}
+	return "note: this server logs no query lines (log_min_duration_statement=-1, log_statement=none) —\n" +
+		"      only errors, checkpoints, and connections will appear. To log slow queries:\n" +
+		"      ALTER SYSTEM SET log_min_duration_statement = '100ms'; SELECT pg_reload_conf();"
 }
 
 // parseLevels turns "warn,error" into a set; empty means every level.
