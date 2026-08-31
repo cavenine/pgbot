@@ -95,6 +95,8 @@ func initSQL(role, database string, p conn.Provider, withLogs bool) string {
 	b.WriteString("-- pgbot init — read-only monitoring role (generated, NOT executed)\n")
 	b.WriteString("-- Review, replace the password placeholder, then run as an admin:\n")
 	b.WriteString("--   pgbot init | psql \"$ADMIN_DSN\"\n")
+	b.WriteString("-- Re-running is safe: an existing role makes CREATE ROLE error (its\n")
+	b.WriteString("-- password is left as it was) and every GRANT below still applies.\n")
 	b.WriteString("\n")
 	fmt.Fprintf(&b, "CREATE ROLE %s LOGIN PASSWORD 'REPLACE-WITH-A-STRONG-PASSWORD';\n", role)
 	fmt.Fprintf(&b, "GRANT pg_monitor TO %s;\n", role)

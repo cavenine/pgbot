@@ -195,3 +195,12 @@ func TestInitSQLLogsGrant(t *testing.T) {
 		t.Errorf("--logs init must carry the grant as an active statement:\n%s", withLogs)
 	}
 }
+
+// A re-run against an existing role prints ERROR from CREATE ROLE while every
+// grant still applies — the header must say so, or the ERROR reads as failure.
+func TestInitSQLExplainsRerunSafety(t *testing.T) {
+	sql := initSQL("pgbot_ro", "yourdb", conn.ProviderUnknown, false)
+	if !strings.Contains(sql, "Re-running is safe") {
+		t.Errorf("header must explain re-run behavior:\n%s", sql)
+	}
+}
