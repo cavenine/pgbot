@@ -225,6 +225,7 @@ or `$PGBOT_DATABASE_URL`.
 | `diff` | compare two baseline snapshots offline |
 | `why` | explain a regression from baseline history: symptom ← mechanism ← antecedent, with numbers and onset times (offline) |
 | `indexes` · `queries` · `tables` · `vacuum` | drill into one signal |
+| `logs` | the server log over SQL — newest entries or `--live` follow (experimental) |
 | `advise` | planner-validated missing-index suggestions (needs hypopg) |
 | `ask "…"` · `explain` | a plain-language AI reading of the same deterministic findings |
 | `explain-finding <id>` | the catalogue page for a finding, offline |
@@ -784,6 +785,35 @@ a silent substitution), warns up front when a **stats reset** or
 **pg_stat_statements eviction** between the snapshots makes specific deltas
 untrustworthy, and refuses to compare two different databases (pass
 `--fingerprint` when the store holds more than one).
+
+### `logs` — the server log, over SQL (experimental)
+
+```sh
+pgbot logs               # the newest 100 entries, typed: query / info / warn / error
+pgbot logs --last 20     # fewer (or more)
+pgbot logs --live        # keep following — Ctrl+C to stop
+pgbot logs --level warn,error --json   # scrubbed NDJSON for scripts and agents
+```
+
+No agent and no file access: pgbot reads the server's own logfile through
+`pg_current_logfile()` and `pg_read_binary_file()`, whichever format it writes
+(jsonlog, csvlog, or stderr with any `log_line_prefix`), and follows rotation.
+pgbot's own footprint — its probe, its polling reads — is filtered out of the
+stream, so a live tail never reads its own reads, and `--last 100` means 100
+entries of *your* activity. The human output shows log lines verbatim; `--json`
+passes every message through the same literal scrubber as the rest of pgbot.
+
+Reading log content is the one thing `pg_monitor` cannot do, so this command
+needs a single extra grant, printed exactly when it's missing:
+
+```sql
+GRANT EXECUTE ON FUNCTION pg_read_binary_file(text, bigint, bigint, boolean) TO pgbot_ro;
+```
+
+A server without a log collector (`logging_collector=off` — the Docker image
+default) has no file to read; pgbot says so and points you at `docker logs`.
+Managed providers that keep logs behind their own APIs (Neon, Supabase) are out
+of reach over SQL — that's their boundary, not a pgbot flag away.
 
 > **Whole cluster:** `pgbot inspect "$DATABASE_URL" --all-databases` inspects every
 > connectable database on the server. Cluster-wide findings (settings, replication,

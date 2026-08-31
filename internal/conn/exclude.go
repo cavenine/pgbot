@@ -66,6 +66,11 @@ const selfFilter = "pid <> pg_backend_pid()"
 // the driver, never user input, so they are inlined into the SQL; that also keeps
 // the filter working on the simple-protocol path used behind transaction poolers,
 // where array bind parameters are awkward.
+// SelfPIDs returns the backend PIDs of every connection pgbot has opened to
+// this server (probe included), so `pgbot logs` can drop its own log lines
+// the way collectors drop their own sessions.
+func (t *Target) SelfPIDs() []uint32 { return t.self.list() }
+
 func (t *Target) ExcludeSelf(sql string) string {
 	return strings.ReplaceAll(sql, selfFilter, t.selfPredicate())
 }

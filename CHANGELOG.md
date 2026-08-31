@@ -8,6 +8,21 @@ separately by `model.SchemaVersion` (currently 1.2.0).
 ## [Unreleased]
 
 ### Added
+- **`pgbot logs` — the server log over SQL, typed and self-aware
+  (experimental).** `pgbot logs` prints the newest 100 entries (`--last N` to
+  change, `--live` to keep following), read through
+  `pg_current_logfile()` + `pg_read_binary_file()` — no agent, no sidecar, no
+  file access. Entries are parsed from whichever format the server writes
+  (jsonlog preferred, then csvlog, then stderr with any `log_line_prefix`) and
+  typed `query` / `info` / `warn` / `error` (`--level` filters). Rotation is
+  followed; `--json` emits one scrubbed object per entry (the machine
+  contract — literals never leave the log). pgbot filters its own footprint
+  out of the stream — its probe, its polling reads, its connection lines —
+  because a log tail that reads its own reads is a feedback loop, and
+  `--last 100` means 100 entries you actually wanted. Needs one grant beyond
+  `pg_monitor` (printed exactly when missing); without a log collector
+  (`logging_collector=off`, the Docker default) it says so and points at
+  `docker logs`.
 - **PgDog poolers are identified behaviorally, never by hostname** (#22). The
   connect probe now sets the `pgdog.shard` routing hint session-level alongside
   a control GUC and reads both back: PgDog consumes `pgdog.*` hints instead of
