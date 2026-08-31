@@ -28,7 +28,14 @@ type logsFlags struct {
 // newLogsCmd — `pgbot logs`. Tail the server's own logfile over SQL: the last
 // N entries, or --live streaming. Experimental.
 func newLogsCmd() *cobra.Command {
-	var f logsFlags
+	cmd, _ := logsCmdWithFlags()
+	return cmd
+}
+
+// logsCmdWithFlags builds the command and exposes its flag struct, so tests
+// can parse arguments and observe what they resolved to.
+func logsCmdWithFlags() (*cobra.Command, *logsFlags) {
+	f := &logsFlags{}
 	cmd := &cobra.Command{
 		Use:   "logs <connection-string>",
 		Short: "Read the server log — last N entries, or follow live (experimental)",
@@ -39,17 +46,20 @@ Beyond pg_monitor this needs one extra grant, printed when missing. The human
 output shows log lines verbatim; --json scrubs literals (the machine contract).`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runLogs(cmd, args, f)
+			return runLogs(cmd, args, *f)
 		},
 	}
 	fl := cmd.Flags()
 	fl.IntVar(&f.last, "last", 100, "how many of the newest entries to print")
 	fl.BoolVar(&f.live, "live", false, "keep following the log after printing the newest entries")
+	// --follow / -f is the tail -f muscle-memory spelling: a true alias, bound
+	// to the same variable as --live.
+	fl.BoolVarP(&f.live, "follow", "f", false, "alias for --live")
 	fl.StringVar(&f.level, "level", "", "only these levels, comma-separated: query,info,warn,error (default all)")
 	fl.BoolVar(&f.jsonOut, "json", false, "one JSON object per entry (literals scrubbed)")
 	fl.BoolVar(&f.noColor, "no-color", false, "disable ANSI color")
 	fl.DurationVar(&f.timeout, "timeout", 30*time.Second, "wall-clock budget (ignored with --live)")
-	return cmd
+	return cmd, f
 }
 
 func runLogs(cmd *cobra.Command, args []string, f logsFlags) error {

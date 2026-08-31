@@ -791,7 +791,7 @@ untrustworthy, and refuses to compare two different databases (pass
 ```sh
 pgbot logs               # the newest 100 entries, typed: query / info / warn / error
 pgbot logs --last 20     # fewer (or more)
-pgbot logs --live        # keep following — Ctrl+C to stop
+pgbot logs --live        # keep following — Ctrl+C to stop (--follow / -f works too)
 pgbot logs --level warn,error --json   # scrubbed NDJSON for scripts and agents
 ```
 

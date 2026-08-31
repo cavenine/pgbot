@@ -8,6 +8,26 @@ import (
 	"github.com/pgrundev/pgbot/internal/pglog"
 )
 
+// --follow and -f are aliases of --live: same variable, any spelling works.
+func TestFollowAliasesLive(t *testing.T) {
+	for _, args := range [][]string{{"--live"}, {"--follow"}, {"-f"}} {
+		cmd, f := logsCmdWithFlags()
+		if err := cmd.Flags().Parse(args); err != nil {
+			t.Fatalf("%v: %v", args, err)
+		}
+		if !f.live {
+			t.Errorf("%v must set live mode", args)
+		}
+	}
+	cmd, f := logsCmdWithFlags()
+	if err := cmd.Flags().Parse(nil); err != nil {
+		t.Fatal(err)
+	}
+	if f.live {
+		t.Error("live must default to off")
+	}
+}
+
 func TestParseLevels(t *testing.T) {
 	all, err := parseLevels("")
 	if err != nil || !all[pglog.LevelQuery] || !all[pglog.LevelInfo] || !all[pglog.LevelWarn] || !all[pglog.LevelError] {

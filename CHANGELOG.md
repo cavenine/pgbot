@@ -7,6 +7,10 @@ separately by `model.SchemaVersion` (currently 1.2.0).
 
 ## [Unreleased]
 
+### Added
+- **`pgbot logs --follow` / `-f`** — a true alias for `--live`, bound to the
+  same variable, because `tail -f` muscle memory deserves to work.
+
 ## [0.6.0] - 2026-08-31
 
 ### Added
