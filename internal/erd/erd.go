@@ -35,8 +35,11 @@ type Schema struct {
 	Edges  []Edge
 }
 
-// RenderASCII draws one box per table (name, columns, PK/FK markers) and a
-// crow's-foot relationship forest. Deterministic: sorted tables, sorted edges.
+// RenderASCII draws one box per table (name, columns, PK/FK markers) with each
+// foreign key ROUTED as a line in a left gutter — corner at the FK row, a
+// vertical lane, an arrowhead into the parent's title row — followed by a
+// crow's-foot relationship forest. Deterministic: sorted tables, sorted edges,
+// lanes assigned in order.
 func RenderASCII(s Schema, color bool) string {
 	if len(s.Tables) == 0 {
 		return "no tables found (empty schema, or the role cannot see them)\n"
@@ -51,12 +54,151 @@ func RenderASCII(s Schema, color bool) string {
 		return tables[i].Name < tables[j].Name
 	})
 
-	for _, t := range tables {
-		writeTableBox(&b, t)
+	// Render boxes to lines, remembering each table's title row and each FK
+	// column's row.
+	var lines []string
+	titleRow := map[string]int{}
+	type conn struct{ childRow, parentRow int }
+	var conns []conn
+	var fkRows []struct {
+		row    int
+		target string // parent table name
 	}
-	b.WriteString("\n")
+	for _, t := range tables {
+		titleRow[t.Name] = len(lines)
+		var box strings.Builder
+		writeTableBox(&box, t)
+		boxLines := strings.Split(strings.TrimRight(box.String(), "\n"), "\n")
+		for i, c := range t.Columns {
+			if c.FKTarget != "" {
+				parent := c.FKTarget
+				if dot := strings.IndexByte(parent, '.'); dot > 0 {
+					parent = parent[:dot]
+				}
+				fkRows = append(fkRows, struct {
+					row    int
+					target string
+				}{len(lines) + 1 + i, parent})
+			}
+		}
+		lines = append(lines, boxLines...)
+		lines = append(lines, "")
+	}
+	for _, fk := range fkRows {
+		if pr, ok := titleRow[fk.target]; ok {
+			conns = append(conns, conn{childRow: fk.row, parentRow: pr})
+		}
+	}
+
+	// Lane assignment: longest spans take the outer lanes; a lane is reused
+	// when row ranges don't overlap. Capped so a monster schema degrades to
+	// the textual FK markers instead of an unreadable gutter.
+	const maxLanes = 8
+	type lane struct{ spans [][2]int }
+	var lanes []lane
+	laneOf := make([]int, len(conns))
+	sort.SliceStable(conns, func(i, j int) bool {
+		si := abs(conns[i].childRow - conns[i].parentRow)
+		sj := abs(conns[j].childRow - conns[j].parentRow)
+		if si != sj {
+			return si > sj
+		}
+		return conns[i].childRow < conns[j].childRow
+	})
+	for i, c := range conns {
+		lo, hi := minInt(c.childRow, c.parentRow), maxInt(c.childRow, c.parentRow)
+		laneOf[i] = -1
+		for li := range lanes {
+			free := true
+			for _, sp := range lanes[li].spans {
+				if lo <= sp[1] && sp[0] <= hi {
+					free = false
+					break
+				}
+			}
+			if free {
+				lanes[li].spans = append(lanes[li].spans, [2]int{lo, hi})
+				laneOf[i] = li
+				break
+			}
+		}
+		if laneOf[i] == -1 && len(lanes) < maxLanes {
+			lanes = append(lanes, lane{spans: [][2]int{{lo, hi}}})
+			laneOf[i] = len(lanes) - 1
+		}
+	}
+
+	gw := len(lanes) * 2 // gutter width: 2 columns per lane
+	if gw > 0 {
+		gw += 2 // room for the horizontal run and arrowhead next to the boxes
+		grid := make([][]rune, len(lines))
+		for i := range grid {
+			grid[i] = []rune(strings.Repeat(" ", gw))
+		}
+		put := func(row, col int, r rune) {
+			cur := grid[row][col]
+			switch {
+			case cur == ' ':
+				grid[row][col] = r
+			case (cur == '│' && r == '─') || (cur == '─' && r == '│'):
+				grid[row][col] = '┼'
+			}
+		}
+		for i, c := range conns {
+			if laneOf[i] < 0 {
+				continue // over the lane cap: the FK → marker still tells the story
+			}
+			col := laneOf[i] * 2 // outer lanes (longest spans) leftmost
+			lo, hi := minInt(c.childRow, c.parentRow), maxInt(c.childRow, c.parentRow)
+			for r := lo + 1; r < hi; r++ {
+				put(r, col, '│')
+			}
+			topCorner, botCorner := '┌', '└'
+			for x := col + 1; x < gw-1; x++ {
+				put(lo, x, '─')
+				put(hi, x, '─')
+			}
+			put(lo, col, topCorner)
+			put(hi, col, botCorner)
+			// Arrowhead into the parent row, plain run into the child row.
+			if c.parentRow < c.childRow {
+				grid[c.parentRow][gw-1] = '▶'
+				put(c.childRow, gw-1, '─')
+			} else {
+				grid[c.parentRow][gw-1] = '▶'
+				put(c.childRow, gw-1, '─')
+			}
+		}
+		for i, l := range lines {
+			b.WriteString(strings.TrimRight(string(grid[i])+l, " "))
+			b.WriteString("\n")
+		}
+	} else {
+		for _, l := range lines {
+			b.WriteString(l + "\n")
+		}
+	}
 	writeForest(&b, s)
 	return b.String()
+}
+
+func abs(a int) int {
+	if a < 0 {
+		return -a
+	}
+	return a
+}
+func minInt(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}
+func maxInt(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
 }
 
 // writeTableBox renders one table:

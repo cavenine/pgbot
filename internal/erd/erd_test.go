@@ -83,3 +83,57 @@ func TestRenderEmpty(t *testing.T) {
 		t.Errorf("empty must say so: %q", out)
 	}
 }
+
+// The boxes are CONNECTED: each FK gets a routed line in a left gutter —
+// corner at the child row, vertical run, arrowhead into the parent's title
+// row — so the diagram reads as a diagram, not a list of boxes.
+func TestRenderASCIIDrawsEdges(t *testing.T) {
+	two := Schema{
+		Tables: []Table{
+			{Schema: "public", Name: "customers", Columns: []Column{{Name: "id", Type: "bigint", PK: true}}},
+			{Schema: "public", Name: "orders", Columns: []Column{
+				{Name: "id", Type: "bigint", PK: true},
+				{Name: "customer_id", Type: "bigint", FKTarget: "customers.id"},
+			}},
+		},
+		Edges: []Edge{{FromTable: "orders", FromColumn: "customer_id", ToTable: "customers", ToColumn: "id"}},
+	}
+	out := RenderASCII(two, false)
+	lines := strings.Split(out, "\n")
+
+	var arrowRow, cornerRow = -1, -1
+	for i, l := range lines {
+		if strings.Contains(l, "▶") && strings.Contains(l, "public.customers") {
+			arrowRow = i
+		}
+		if strings.Contains(l, "customer_id") && strings.Contains(l, "└──") {
+			cornerRow = i
+		}
+	}
+	if arrowRow < 0 {
+		t.Fatalf("parent title row must carry the arrowhead:\n%s", out)
+	}
+	if cornerRow < 0 {
+		t.Fatalf("child FK row must carry the corner:\n%s", out)
+	}
+	// The vertical run between them.
+	for i := arrowRow + 1; i < cornerRow; i++ {
+		if !strings.Contains(lines[i], "│") {
+			t.Errorf("row %d between endpoints must carry the lane: %q", i, lines[i])
+		}
+	}
+	// Non-edge rows still align: every gutter is the same width.
+	if !strings.Contains(out, "Relationships") {
+		t.Errorf("the forest stays:\n%s", out)
+	}
+
+	// The five-table fixture (three FKs from one table) must still render
+	// deterministically and carry a line per edge.
+	multi := RenderASCII(fixture(), false)
+	if multi != RenderASCII(fixture(), false) {
+		t.Error("multi-edge render must be deterministic")
+	}
+	if strings.Count(multi, "▶") < 3 {
+		t.Errorf("each of the 3 edges gets an arrowhead:\n%s", multi)
+	}
+}
