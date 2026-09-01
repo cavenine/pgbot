@@ -41,6 +41,7 @@ func newERDCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			s.Info.Version = pgVersionShort(target.Caps.VersionNum)
 			switch {
 			case htmlOut:
 				fmt.Print(erd.RenderHTML(s))

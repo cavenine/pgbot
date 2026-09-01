@@ -110,5 +110,51 @@ func Introspect(ctx context.Context, q Querier, schemaFilter string) (Schema, er
 	for _, key := range order {
 		s.Tables = append(s.Tables, *byTable[key])
 	}
+	introspectExtras(ctx, q, schemaFilter, &s)
 	return s, nil
+}
+
+// Non-primary indexes, definitions compacted to method+columns (the PK marker
+// already covers the primary index).
+const indexesSQL = `
+SELECT n.nspname AS schema, t.relname AS table, ic.relname AS index,
+       regexp_replace(pg_get_indexdef(i.indexrelid), '^CREATE.*USING ', '') AS def,
+       i.indisunique AS uniq
+FROM pg_index i
+JOIN pg_class ic     ON ic.oid = i.indexrelid
+JOIN pg_class t      ON t.oid = i.indrelid
+JOIN pg_namespace n  ON n.oid = t.relnamespace
+WHERE NOT i.indisprimary
+  AND t.relkind IN ('r', 'p')
+  AND n.nspname NOT IN ('pg_catalog', 'information_schema')
+  AND n.nspname NOT LIKE 'pg\_%'
+  AND ($1 = '' OR n.nspname = $1)
+ORDER BY 1, 2, 3`
+
+// introspectExtras fills indexes and the database header info; both are
+// best-effort decoration — an error leaves the structural diagram intact.
+func introspectExtras(ctx context.Context, q Querier, schemaFilter string, s *Schema) {
+	byKey := map[string]*Table{}
+	for i := range s.Tables {
+		byKey[s.Tables[i].Schema+"."+s.Tables[i].Name] = &s.Tables[i]
+	}
+	if rows, err := q.Query(ctx, indexesSQL, schemaFilter); err == nil {
+		for rows.Next() {
+			var sch, tbl, name, def string
+			var uniq bool
+			if rows.Scan(&sch, &tbl, &name, &def, &uniq) != nil {
+				break
+			}
+			if t := byKey[sch+"."+tbl]; t != nil {
+				t.Indexes = append(t.Indexes, Index{Name: name, Def: def, Unique: uniq})
+			}
+		}
+		rows.Close()
+	}
+	if rows, err := q.Query(ctx, `SELECT current_database(), pg_database_size(current_database())`); err == nil {
+		if rows.Next() {
+			_ = rows.Scan(&s.Info.Database, &s.Info.SizeBytes)
+		}
+		rows.Close()
+	}
 }

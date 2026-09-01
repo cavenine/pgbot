@@ -182,6 +182,7 @@ func RenderASCIIRow(s Schema) string {
 	}
 
 	var b strings.Builder
+	b.WriteString(s.headerLine() + "\n\n")
 	for _, row := range grid {
 		b.WriteString(strings.TrimRight(string(row), " "))
 		b.WriteString("\n")

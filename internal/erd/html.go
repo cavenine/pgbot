@@ -69,7 +69,15 @@ func RenderHTML(s Schema) string {
 				}
 				w = maxFloat(w, lw)
 			}
-			b := &box{x: colX, y: y, w: w, h: titleH + float64(len(t.Columns))*rowH + padY, fkY: map[string]float64{}}
+			ih := 0.0
+			if len(t.Indexes) > 0 {
+				ih = float64(len(t.Indexes))*rowH + 6
+			}
+			for _, ix := range t.Indexes {
+				lw := float64(len(ix.Name)+2+len(ix.Def)+8)*charW + 2*padX
+				w = maxFloat(w, lw)
+			}
+			b := &box{x: colX, y: y, w: w, h: titleH + float64(len(t.Columns))*rowH + ih + padY, fkY: map[string]float64{}}
 			for i, c := range t.Columns {
 				if c.FKTarget != "" {
 					b.fkY[c.Name] = y + titleH + float64(i)*rowH + rowH/2
@@ -133,6 +141,18 @@ func RenderHTML(s Schema) string {
 			}
 			svg.WriteString(`</text>` + "\n")
 		}
+		if len(t.Indexes) > 0 {
+			dy := b.y + titleH + float64(len(t.Columns))*rowH + 3
+			fmt.Fprintf(&svg, `<line x1="%.1f" y1="%.1f" x2="%.1f" y2="%.1f" class="rule"/>`+"\n", b.x, dy, b.x+b.w, dy)
+			for xi, ix := range t.Indexes {
+				y := dy + float64(xi)*rowH + 16
+				fmt.Fprintf(&svg, `<text x="%.1f" y="%.1f" class="idx">%s <tspan class="typ">%s</tspan>`, b.x+padX, y, esc(ix.Name), esc(ix.Def))
+				if ix.Unique {
+					svg.WriteString(` <tspan class="pk">UNIQUE</tspan>`)
+				}
+				svg.WriteString(`</text>` + "\n")
+			}
+		}
 		svg.WriteString(`</g>` + "\n")
 	}
 
@@ -151,8 +171,9 @@ func RenderHTML(s Schema) string {
   .pk{fill:#5ecf9a;font-weight:600}
   .fk{fill:#e8a75a}
   .edge{fill:none;stroke:#5a6472;stroke-width:1.5;stroke-dasharray:5 4}
+  .idx{fill:#8b95a3;font-size:12px}
 </style></head><body>
-<header><b>pgbot erd</b> — drag to pan, scroll to zoom · generated locally, nothing leaves this file</header>
+<header><b>pgbot erd</b> · ` + esc(s.headerLine()) + ` — drag to pan, scroll to zoom · generated locally, nothing leaves this file</header>
 <svg id="view" viewBox="0 0 ` + fmt.Sprintf("%.0f %.0f", totalW, totalH) + `">
 <defs><marker id="arr" markerWidth="9" markerHeight="8" refX="8" refY="4" orient="auto">
 <path d="M9 0 L0 4 L9 8" fill="none" stroke="#5a6472" stroke-width="1.5"/></marker></defs>

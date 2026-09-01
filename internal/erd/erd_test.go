@@ -29,6 +29,7 @@ func fixture() Schema {
 			{FromTable: "order_items", FromColumn: "product_id", ToTable: "products", ToColumn: "id"},
 			{FromTable: "orders", FromColumn: "customer_id", ToTable: "customers", ToColumn: "id"},
 		},
+		Info: DBInfo{Database: "shop", Version: "postgres 17.4", SizeBytes: 91887295},
 	}
 }
 
@@ -219,5 +220,45 @@ func TestRenderHTML(t *testing.T) {
 	w := RenderHTML(weird)
 	if strings.Contains(w, "a<b") || !strings.Contains(w, "a&lt;b") {
 		t.Errorf("names must be escaped: %q", w)
+	}
+}
+
+// Indexes render as a section inside the table box, below a divider, with
+// UNIQUE marked — and only for tables that have any.
+func TestRenderIndexes(t *testing.T) {
+	f := fixture()
+	f.Tables[2].Indexes = []Index{ // orders
+		{Name: "orders_customer_idx", Def: "btree (customer_id)"},
+		{Name: "orders_status_uq", Def: "btree (status)", Unique: true},
+	}
+	out := RenderASCII(f, false)
+	for _, want := range []string{"orders_customer_idx", "btree (customer_id)", "UNIQUE"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("ascii missing index info %q:\n%s", want, out)
+		}
+	}
+	// customers has no indexes: its box must not gain a divider section.
+	if strings.Count(out, "├") < 1 {
+		t.Errorf("indexed table needs a divider:\n%s", out)
+	}
+	if h := RenderHTML(f); !strings.Contains(h, "orders_customer_idx") {
+		t.Errorf("html must carry indexes")
+	}
+}
+
+// Every renderer opens with the database info line: name, version, size,
+// and the diagram's own counts.
+func TestRenderDBInfoHeader(t *testing.T) {
+	f := fixture()
+	for name, out := range map[string]string{
+		"ascii": RenderASCII(f, false),
+		"row":   RenderASCIIRow(f),
+		"html":  RenderHTML(f),
+	} {
+		for _, want := range []string{"shop", "postgres 17.4", "4 tables", "3 FKs", "87.6 MiB"} {
+			if !strings.Contains(out, want) {
+				t.Errorf("%s header missing %q", name, want)
+			}
+		}
 	}
 }

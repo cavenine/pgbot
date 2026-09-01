@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+
+	"github.com/pgrundev/pgbot/internal/render"
 )
 
 type Column struct {
@@ -21,6 +23,21 @@ type Table struct {
 	Schema  string
 	Name    string
 	Columns []Column
+	Indexes []Index // non-primary indexes (the PK marker already covers its index)
+}
+
+// Index is one non-primary index, its definition compacted to method+columns.
+type Index struct {
+	Name   string
+	Def    string // e.g. "btree (customer_id)" — from pg_get_indexdef
+	Unique bool
+}
+
+// DBInfo is the header line: which database this diagram describes.
+type DBInfo struct {
+	Database  string
+	Version   string
+	SizeBytes int64
 }
 
 type Edge struct {
@@ -33,6 +50,31 @@ type Edge struct {
 type Schema struct {
 	Tables []Table
 	Edges  []Edge
+	Info   DBInfo
+}
+
+// headerLine summarizes the database and the diagram: name, server version,
+// size, and the counts of what is drawn.
+func (s Schema) headerLine() string {
+	idx := 0
+	for _, t := range s.Tables {
+		idx += len(t.Indexes)
+	}
+	parts := []string{}
+	if s.Info.Database != "" {
+		parts = append(parts, s.Info.Database)
+	}
+	if s.Info.Version != "" {
+		parts = append(parts, s.Info.Version)
+	}
+	parts = append(parts, fmt.Sprintf("%d tables", len(s.Tables)), fmt.Sprintf("%d FKs", len(s.Edges)))
+	if idx > 0 {
+		parts = append(parts, fmt.Sprintf("%d indexes", idx))
+	}
+	if s.Info.SizeBytes > 0 {
+		parts = append(parts, render.HumanBytes(s.Info.SizeBytes))
+	}
+	return strings.Join(parts, " · ")
 }
 
 // RenderASCII draws one box per table (name, columns, PK/FK markers) with each
@@ -45,6 +87,7 @@ func RenderASCII(s Schema, color bool) string {
 		return "no tables found (empty schema, or the role cannot see them)\n"
 	}
 	var b strings.Builder
+	b.WriteString(s.headerLine() + "\n\n")
 
 	tables := append([]Table(nil), s.Tables...)
 	sort.Slice(tables, func(i, j int) bool {
@@ -227,14 +270,28 @@ func writeTableBox(b *strings.Builder, t Table) {
 		rows = append(rows, strings.TrimRight(
 			fmt.Sprintf("%-*s  %-*s  %s", nameW, c.Name, typeW, c.Type, marker), " "))
 	}
+	var idxRows []string
+	for _, ix := range t.Indexes {
+		row := ix.Name + "  " + ix.Def
+		if ix.Unique {
+			row += "  UNIQUE"
+		}
+		idxRows = append(idxRows, row)
+	}
 	title := t.Schema + "." + t.Name
 	inner := len(title) + 4
-	for _, r := range rows {
+	for _, r := range append(append([]string(nil), rows...), idxRows...) {
 		inner = max(inner, len(r)+2)
 	}
 	fmt.Fprintf(b, "┌─ %s %s┐\n", title, strings.Repeat("─", inner-len(title)-3))
 	for _, r := range rows {
 		fmt.Fprintf(b, "│ %-*s│\n", inner-1, r)
+	}
+	if len(idxRows) > 0 {
+		fmt.Fprintf(b, "├%s┤\n", strings.Repeat("─", inner))
+		for _, r := range idxRows {
+			fmt.Fprintf(b, "│ %-*s│\n", inner-1, r)
+		}
 	}
 	fmt.Fprintf(b, "└%s┘\n", strings.Repeat("─", inner))
 }

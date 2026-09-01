@@ -14,6 +14,10 @@ separately by `model.SchemaVersion` (currently 1.2.0).
 - **`pgbot erd --html`** — a self-contained interactive diagram file: inline
   SVG (dashed edges, arrowheads, pgbot's terminal palette) with inline
   pan/zoom script, zero external requests — the schema never leaves the file.
+- **`pgbot erd` shows indexes and database info.** Every renderer opens with
+  the database header (name, server version, table/FK/index counts, size),
+  and each table box gains an index section below a divider — non-primary
+  indexes with method, columns, partial-index predicates, and UNIQUE marked.
 
 ## [0.7.1] - 2026-09-01
 
