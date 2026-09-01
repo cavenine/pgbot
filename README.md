@@ -818,12 +818,16 @@ sampled; the only exact numbers are ages read from the server.
 ```sh
 pgbot erd                # box-drawn tables + a crow's-foot relationship forest
 pgbot erd --schema app   # one schema only
+pgbot erd --layout row   # left-to-right, dashed ascii edges
 pgbot erd --mermaid      # erDiagram text — pasteable into GitHub or mermaid.live
+pgbot erd --html > schema.html   # self-contained interactive SVG: pan, zoom, share
 ```
 
 Structure only — tables, columns, keys, foreign-key edges from `pg_catalog` —
 never data, and the connection string never leaves your machine (unlike
-paste-your-DSN diagram websites). Needs nothing beyond CONNECT.
+paste-your-DSN diagram websites). Needs nothing beyond CONNECT. The `--html`
+file is fully self-contained — inline SVG and inline script, zero external
+requests — so the schema never leaves the file either.
 
 ### `waits` — where database time goes (experimental)
 

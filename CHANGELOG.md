@@ -7,6 +7,14 @@ separately by `model.SchemaVersion` (currently 1.2.0).
 
 ## [Unreleased]
 
+### Added
+- **`pgbot erd --layout row`** — left-to-right diagram: parents in the left
+  column, children to the right, edges drawn as dashed ascii (`----`, `|`,
+  `+`, `<` into the parent) leaving from each FK's own row.
+- **`pgbot erd --html`** — a self-contained interactive diagram file: inline
+  SVG (dashed edges, arrowheads, pgbot's terminal palette) with inline
+  pan/zoom script, zero external requests — the schema never leaves the file.
+
 ## [0.7.1] - 2026-09-01
 
 ### Added

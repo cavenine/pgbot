@@ -18,7 +18,7 @@ import (
 // machine, unlike paste-your-DSN diagram websites.
 func newERDCmd() *cobra.Command {
 	var schemaFilter, layout string
-	var mermaid bool
+	var mermaid, htmlOut bool
 	var timeout time.Duration
 	cmd := &cobra.Command{
 		Use:   "erd <connection-string>",
@@ -42,6 +42,8 @@ func newERDCmd() *cobra.Command {
 				return err
 			}
 			switch {
+			case htmlOut:
+				fmt.Print(erd.RenderHTML(s))
 			case mermaid:
 				fmt.Print(erd.RenderMermaid(s))
 			case layout == "row":
@@ -58,6 +60,7 @@ func newERDCmd() *cobra.Command {
 	fl.StringVar(&schemaFilter, "schema", "", "limit to one schema (default: every user schema)")
 	fl.StringVar(&layout, "layout", "column", "diagram direction: column (top-down) or row (left-to-right, dashed edges)")
 	fl.BoolVar(&mermaid, "mermaid", false, "emit a mermaid erDiagram instead of the terminal view")
+	fl.BoolVar(&htmlOut, "html", false, "emit a self-contained interactive HTML diagram (pan/zoom, no external requests): pgbot erd --html > schema.html")
 	fl.DurationVar(&timeout, "timeout", 30*time.Second, "wall-clock budget")
 	return cmd
 }

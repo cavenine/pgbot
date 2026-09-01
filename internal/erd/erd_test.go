@@ -188,3 +188,36 @@ func TestRenderASCIIRow(t *testing.T) {
 		t.Errorf("roots and children must be in adjacent columns:\n%s", multi)
 	}
 }
+
+// --html: one SELF-CONTAINED file — an inline SVG diagram with dashed edges
+// and pan/zoom script, no external requests of any kind, so the schema never
+// leaves the file.
+func TestRenderHTML(t *testing.T) {
+	out := RenderHTML(fixture())
+
+	for _, want := range []string{
+		"<svg", "</svg>", "</html>",
+		"public.orders", "customer_id",
+		"stroke-dasharray", // the dashed relationship edges
+		"marker",           // arrowheads
+		"addEventListener", // pan/zoom lives inline
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("html missing %q", want)
+		}
+	}
+	for _, banned := range []string{"http://", "https://", "src=", "@import"} {
+		if strings.Contains(out, banned) {
+			t.Errorf("html must be fully self-contained, found %q", banned)
+		}
+	}
+	if out != RenderHTML(fixture()) {
+		t.Error("html render must be deterministic")
+	}
+	// A table name that could break markup must be escaped.
+	weird := Schema{Tables: []Table{{Schema: "public", Name: "a<b", Columns: []Column{{Name: "x&y", Type: "text"}}}}}
+	w := RenderHTML(weird)
+	if strings.Contains(w, "a<b") || !strings.Contains(w, "a&lt;b") {
+		t.Errorf("names must be escaped: %q", w)
+	}
+}
