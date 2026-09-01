@@ -137,3 +137,54 @@ func TestRenderASCIIDrawsEdges(t *testing.T) {
 		t.Errorf("each of the 3 edges gets an arrowhead:\n%s", multi)
 	}
 }
+
+// Row layout: parents in the left column, children to the right, boxes
+// side by side — and the edges are DASHED ascii (----, |, + corners, < into
+// the parent) so relationships read differently from box borders.
+func TestRenderASCIIRow(t *testing.T) {
+	two := Schema{
+		Tables: []Table{
+			{Schema: "public", Name: "customers", Columns: []Column{{Name: "id", Type: "bigint", PK: true}}},
+			{Schema: "public", Name: "orders", Columns: []Column{
+				{Name: "id", Type: "bigint", PK: true},
+				{Name: "customer_id", Type: "bigint", FKTarget: "customers.id"},
+			}},
+		},
+		Edges: []Edge{{FromTable: "orders", FromColumn: "customer_id", ToTable: "customers", ToColumn: "id"}},
+	}
+	out := RenderASCIIRow(two)
+
+	// Side by side: the parent's box and the child's box share a line.
+	var sideBySide bool
+	for _, l := range strings.Split(out, "\n") {
+		if strings.Contains(l, "public.customers") && strings.Contains(l, "public.orders") {
+			sideBySide = true
+		}
+	}
+	if !sideBySide {
+		t.Fatalf("row layout must place parent and child on the same band:\n%s", out)
+	}
+	// Dashed connector with the arrowhead pointing at the parent.
+	if !strings.Contains(out, "<--") {
+		t.Errorf("edge must be dashed with < into the parent:\n%s", out)
+	}
+	if strings.Contains(out, "▶") {
+		t.Errorf("row layout uses ascii dashes, not box-drawing arrows:\n%s", out)
+	}
+	if out != RenderASCIIRow(two) {
+		t.Error("row render must be deterministic")
+	}
+
+	// Five tables: three roots left, two children right; renders every edge or
+	// falls back to the textual marker — never panics, never overlaps boxes.
+	multi := RenderASCIIRow(fixture())
+	var rootLine bool
+	for _, l := range strings.Split(multi, "\n") {
+		if strings.Contains(l, "public.customers") && strings.Contains(l, "public.orders") {
+			rootLine = true
+		}
+	}
+	if !rootLine {
+		t.Errorf("roots and children must be in adjacent columns:\n%s", multi)
+	}
+}

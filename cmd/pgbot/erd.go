@@ -17,7 +17,7 @@ import (
 // Structure only, never data — and the connection string never leaves the
 // machine, unlike paste-your-DSN diagram websites.
 func newERDCmd() *cobra.Command {
-	var schemaFilter string
+	var schemaFilter, layout string
 	var mermaid bool
 	var timeout time.Duration
 	cmd := &cobra.Command{
@@ -41,16 +41,22 @@ func newERDCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if mermaid {
+			switch {
+			case mermaid:
 				fmt.Print(erd.RenderMermaid(s))
-				return nil
+			case layout == "row":
+				fmt.Print(erd.RenderASCIIRow(s))
+			case layout == "column" || layout == "":
+				fmt.Print(erd.RenderASCII(s, false))
+			default:
+				return usageErrf("unknown --layout %q (valid: column, row)", layout)
 			}
-			fmt.Print(erd.RenderASCII(s, false))
 			return nil
 		},
 	}
 	fl := cmd.Flags()
 	fl.StringVar(&schemaFilter, "schema", "", "limit to one schema (default: every user schema)")
+	fl.StringVar(&layout, "layout", "column", "diagram direction: column (top-down) or row (left-to-right, dashed edges)")
 	fl.BoolVar(&mermaid, "mermaid", false, "emit a mermaid erDiagram instead of the terminal view")
 	fl.DurationVar(&timeout, "timeout", 30*time.Second, "wall-clock budget")
 	return cmd
