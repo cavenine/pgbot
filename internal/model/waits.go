@@ -35,7 +35,7 @@ type WaitStudy struct {
 type SessionWaits struct {
 	PID        int     `json:"pid"`
 	User       string  `json:"user,omitempty"`
-	Db         string  `json:"db,omitempty"`
+	DB         string  `json:"db,omitempty"`
 	App        string  `json:"app,omitempty"`
 	Count      int     `json:"count"`
 	Share      float64 `json:"share"` // of all samples in the window

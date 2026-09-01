@@ -12,7 +12,10 @@ import (
 )
 
 // A real two-session lock conflict must produce a SUSTAINED blocker with the
-// holder's transaction age, and scrubbed query text throughout.
+// holder's transaction age, and scrubbed query text throughout. Advisory locks
+// create genuine heavyweight-lock contention (visible to pg_blocking_pids)
+// without any schema privileges — CI's DSN is a monitoring role that cannot
+// CREATE TABLE, exactly pgbot's own recommended posture.
 func TestIntegration_waitStudy_namesTheBlocker(t *testing.T) {
 	dsn := os.Getenv("PGBOT_TEST_DSN")
 	if dsn == "" {
@@ -20,33 +23,22 @@ func TestIntegration_waitStudy_namesTheBlocker(t *testing.T) {
 	}
 	ctx := context.Background()
 
-	admin, err := pgx.Connect(ctx, dsn)
+	// Holder: an open transaction owning the advisory lock.
+	holder, err := pgx.Connect(ctx, dsn)
 	if err != nil {
 		t.Fatalf("connect: %v", err)
 	}
-	defer admin.Close(ctx)
-	if _, err := admin.Exec(ctx, `CREATE TABLE IF NOT EXISTS waits_it (id int PRIMARY KEY, v text);
-		INSERT INTO waits_it VALUES (1,'x') ON CONFLICT DO NOTHING`); err != nil {
-		t.Fatalf("setup: %v", err)
-	}
-	defer admin.Exec(ctx, `DROP TABLE IF EXISTS waits_it`) //nolint:errcheck
-
-	// Holder: an open transaction pinning the row.
-	holder, err := pgx.Connect(ctx, dsn)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer holder.Close(ctx)
+	defer holder.Close(context.Background())
 	tx, err := holder.Begin(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer tx.Rollback(ctx) //nolint:errcheck
-	if _, err := tx.Exec(ctx, `SELECT * FROM waits_it WHERE id = 1 FOR UPDATE`); err != nil {
-		t.Fatal(err)
+	defer tx.Rollback(context.Background()) //nolint:errcheck
+	if _, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock(987654321012345)`); err != nil {
+		t.Fatalf("acquire advisory lock: %v", err)
 	}
 
-	// Victim: an UPDATE that blocks until the holder commits.
+	// Victim: blocks on the same advisory lock until the holder rolls back.
 	victimDone := make(chan struct{})
 	go func() {
 		defer close(victimDone)
@@ -57,7 +49,7 @@ func TestIntegration_waitStudy_namesTheBlocker(t *testing.T) {
 		defer v.Close(context.Background())
 		vctx, cancel := context.WithTimeout(ctx, 20*time.Second)
 		defer cancel()
-		_, _ = v.Exec(vctx, `UPDATE waits_it SET v = 'y' WHERE id = 1`)
+		_, _ = v.Exec(vctx, `SELECT pg_advisory_xact_lock(987654321012345)`)
 	}()
 	time.Sleep(time.Second) // let the victim start waiting
 
@@ -70,7 +62,7 @@ func TestIntegration_waitStudy_namesTheBlocker(t *testing.T) {
 
 	study := RunWaitStudy(ctx, target, target.Caps, WaitStudyOptions{Hz: 10, Window: 4 * time.Second})
 
-	_ = tx.Rollback(ctx) // release the victim
+	_ = tx.Rollback(context.Background()) // release the victim
 	<-victimDone
 
 	if study.Profile == nil || !study.Profile.Available {
@@ -89,10 +81,10 @@ func TestIntegration_waitStudy_namesTheBlocker(t *testing.T) {
 	if b.HolderXactAgeS <= 0 {
 		t.Errorf("holder xact age must be observed: %+v", b)
 	}
-	if len(b.Victims) == 0 || !strings.Contains(b.Victims[0].Query, "UPDATE waits_it") {
+	if len(b.Victims) == 0 || !strings.Contains(b.Victims[0].Query, "pg_advisory_xact_lock") {
 		t.Errorf("victim query missing: %+v", b.Victims)
 	}
-	if strings.Contains(b.Victims[0].Query, "'y'") {
+	if strings.Contains(b.Victims[0].Query, "987654321012345") {
 		t.Errorf("victim query literal not scrubbed: %q", b.Victims[0].Query)
 	}
 }

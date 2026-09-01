@@ -251,7 +251,7 @@ func renderTopSessions(st render.Styler, s *model.WaitStudy) {
 		}
 		id := fmt.Sprintf("PID %d", sess.PID)
 		if sess.User != "" {
-			id += " " + sess.User + "@" + sess.Db
+			id += " " + sess.User + "@" + sess.DB
 		}
 		fmt.Printf("  %4.0f%%  %-28s %-20s %s\n", sess.Share*100, id, st.Dim(sess.TopEvent), truncStr(sess.SampleText, 50))
 	}

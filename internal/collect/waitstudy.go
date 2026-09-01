@@ -135,7 +135,7 @@ func sessionRollup(samples []WaitSample, scrub func(string) string) []model.Sess
 			a.s.User = s.Usename
 		}
 		if s.Datname != "" {
-			a.s.Db = s.Datname
+			a.s.DB = s.Datname
 		}
 		if s.AppName != "" {
 			a.s.App = s.AppName
