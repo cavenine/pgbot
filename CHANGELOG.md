@@ -7,6 +7,22 @@ separately by `model.SchemaVersion` (currently 1.2.0).
 
 ## [Unreleased]
 
+### Added
+- **`pgbot waits` — sampled wait analysis with evidence-gated blockers
+  (experimental).** Samples `pg_stat_activity` at up to 20 Hz and the lock
+  graph at 1 Hz for a bounded window (default 10s, `--duration`, `--pid`,
+  `--group event|query|session`, `--json`): average active sessions, DB time
+  by wait class, top wait events, waiting sessions, and blockers — a holder is
+  named only when observed across ≥3 lock snapshots (or 2 with the victim's
+  own samples majority-Lock); anything less is transient, never blamed. All
+  shares are labeled sampled; the only exact numbers are ages read from the
+  server; lock contention is explicitly reported as NOT evidence of a missing
+  index. Query text passes the literal scrubber; `--json` is a separately
+  versioned document (`waits_schema_version 1.0.0`). Wait counts fold into the
+  existing `wait_rollups` store by default (`--no-store` opts out). Reuses the
+  hardened inspect ASH sampler — poll budgets, skip-while-in-flight,
+  idle-vs-broken accounting — with an extended column set.
+
 ## [0.6.3] - 2026-08-31
 
 ### Added

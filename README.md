@@ -226,6 +226,7 @@ or `$PGBOT_DATABASE_URL`.
 | `why` | explain a regression from baseline history: symptom ← mechanism ← antecedent, with numbers and onset times (offline) |
 | `indexes` · `queries` · `tables` · `vacuum` | drill into one signal |
 | `logs` | the server log over SQL — newest entries or `--live` follow (experimental) |
+| `waits` | sample where database time goes — wait classes, blockers, contention (experimental) |
 | `advise` | planner-validated missing-index suggestions (needs hypopg) |
 | `ask "…"` · `explain` | a plain-language AI reading of the same deterministic findings |
 | `explain-finding <id>` | the catalogue page for a finding, offline |
@@ -785,6 +786,26 @@ a silent substitution), warns up front when a **stats reset** or
 **pg_stat_statements eviction** between the snapshots makes specific deltas
 untrustworthy, and refuses to compare two different databases (pass
 `--fingerprint` when the store holds more than one).
+
+### `waits` — where database time goes (experimental)
+
+```sh
+pgbot waits                         # sample 10s: wait classes, top events, blockers
+pgbot waits --duration 30s --group query
+pgbot waits --pid 18442             # one backend's story
+pgbot waits --json                  # versioned pgbot-waits document (scrubbed)
+```
+
+Samples `pg_stat_activity` at 10 Hz and the lock graph (`pg_blocking_pids`)
+at 1 Hz for a bounded window — no extension, no eBPF, no daemon, plain
+`pg_monitor`. Reports average active sessions, DB time by wait class, top wait
+events, waiting sessions, and **blockers with evidence**: a holder is named
+only when seen across several lock snapshots (one glimpse is listed as
+transient, never blamed). Every share is labeled *sampled* — the only exact
+numbers are ages read from the server — and lock contention is explicitly
+called out as *not* evidence of a missing index. Aggregated wait counts fold
+into the local baseline store (`--no-store` skips), so `diff` and `why` gain
+wait history over time.
 
 ### `logs` — the server log, over SQL (experimental)
 
