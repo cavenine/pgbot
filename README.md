@@ -223,7 +223,7 @@ or `$PGBOT_DATABASE_URL`.
 | `lint` | schema-only check, safe on an empty CI database (`inspect --profile=schema --no-store`) |
 | `init` | generate the read-only role setup SQL — nothing is executed (`--verify` checks an existing role) |
 | `diff` | compare two baseline snapshots offline |
-| `why` | explain a regression from baseline history: symptom ← mechanism ← antecedent, with numbers and onset times (offline) |
+| `why` | explain a regression from baseline history: symptom ← mechanism ← antecedent, with numbers and onset times (offline; `--duration 10s` adds a live wait diagnosis) |
 | `indexes` · `queries` · `tables` · `vacuum` | drill into one signal |
 | `logs` | the server log over SQL — newest entries or `--live` follow (experimental) |
 | `waits` | sample where database time goes — wait classes, blockers, contention (experimental) |
@@ -786,6 +786,23 @@ a silent substitution), warns up front when a **stats reset** or
 **pg_stat_statements eviction** between the snapshots makes specific deltas
 untrustworthy, and refuses to compare two different databases (pass
 `--fingerprint` when the store holds more than one).
+
+### `why --duration` — live diagnosis: executing, or waiting?
+
+```sh
+pgbot why --duration 10s          # sample the live database, then diagnose
+```
+
+`why` stays fully offline by default. With `--duration` it also runs a wait
+study (the same engine as `pgbot waits`) and classifies the result through a
+deterministic, first-match cause table: **transaction lock contention** (only
+with a sustained, named blocker), **storage/WAL wait** (IO alone never claims
+a missing index), **client/application wait** (explicitly not a PostgreSQL
+problem), **saturated with active work**, **not significant** (waits on
+near-zero activity are noise), or **insufficient evidence** — refusing to
+conclude beats a confident guess. When the local store holds wait history, a
+labeled ratio corroborates: *"Lock waits 8× vs the previous 24h."* Shares are
+sampled; the only exact numbers are ages read from the server.
 
 ### `waits` — where database time goes (experimental)
 

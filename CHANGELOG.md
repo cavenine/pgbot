@@ -8,6 +8,21 @@ separately by `model.SchemaVersion` (currently 1.2.0).
 ## [Unreleased]
 
 ### Added
+- **`pgbot why --duration 10s` — live wait diagnosis on top of the offline
+  history engine.** `why` without the flag is unchanged (offline, no
+  connection). With it, the waits study becomes a live evidence source
+  classified through a deterministic first-match cause table — lock contention
+  (only with a sustained named blocker), lock churn (a possibility, never a
+  diagnosis), storage/WAL wait (IO alone never claims a missing index),
+  client/application wait (explicitly not a PostgreSQL problem), CPU
+  saturation, mixed — behind two gates that outrank every diagnosis:
+  insufficient evidence (thin sample, partial visibility, poor coverage) and
+  not-significant (waits on near-zero activity are noise). Wait-rollup history
+  corroborates by labeled ratio ("Lock waits 8× vs the previous 24h"), never
+  blended into live percentages, and adds confidence. The report gains an
+  additive `live` object (`why_schema_version` 1.0.0 → 1.1.0); wait counts
+  fold into the store so each run sharpens the next.
+
 - **`pgbot waits` — sampled wait analysis with evidence-gated blockers
   (experimental).** Samples `pg_stat_activity` at up to 20 Hz and the lock
   graph at 1 Hz for a bounded window (default 10s, `--duration`, `--pid`,
