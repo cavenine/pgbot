@@ -8,6 +8,11 @@ separately by `model.SchemaVersion` (currently 1.2.0).
 ## [Unreleased]
 
 ### Added
+- **`pgbot logs` reads the pgAudit trail as its own level.** pgAudit writes
+  its audit records into the server log at LOG severity with an `AUDIT:`
+  prefix; they now classify as level `audit` — `pgbot logs --level audit`
+  is the audit-trail reader, completing the pgaudit story next to the
+  existing posture findings. Scrubbed in `--json` like everything else.
 - **`pgbot report` — the full inspection as one self-contained HTML page.**
   The same collection pipeline as `inspect` (a baseline snapshot is stored as
   usual), rendered for a browser: health score, findings ordered by severity

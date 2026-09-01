@@ -55,7 +55,7 @@ output shows log lines verbatim; --json scrubs literals (the machine contract).`
 	// --follow / -f is the tail -f muscle-memory spelling: a true alias, bound
 	// to the same variable as --live.
 	fl.BoolVarP(&f.live, "follow", "f", false, "alias for --live")
-	fl.StringVar(&f.level, "level", "", "only these levels, comma-separated: query,info,warn,error (default all)")
+	fl.StringVar(&f.level, "level", "", "only these levels, comma-separated: query,info,warn,error,audit (default all)")
 	fl.BoolVar(&f.jsonOut, "json", false, "one JSON object per entry (literals scrubbed)")
 	fl.BoolVar(&f.noColor, "no-color", false, "disable ANSI color")
 	fl.DurationVar(&f.timeout, "timeout", 30*time.Second, "wall-clock budget (ignored with --live)")
@@ -215,7 +215,8 @@ func queryLoggingNote(minDuration, logStatement string) string {
 // parseLevels turns "warn,error" into a set; empty means every level.
 func parseLevels(s string) (map[pglog.Level]bool, error) {
 	all := map[pglog.Level]bool{
-		pglog.LevelQuery: true, pglog.LevelInfo: true, pglog.LevelWarn: true, pglog.LevelError: true,
+		pglog.LevelQuery: true, pglog.LevelInfo: true, pglog.LevelWarn: true,
+		pglog.LevelError: true, pglog.LevelAudit: true,
 	}
 	if strings.TrimSpace(s) == "" {
 		return all, nil
@@ -224,7 +225,7 @@ func parseLevels(s string) (map[pglog.Level]bool, error) {
 	for _, part := range strings.Split(s, ",") {
 		l := pglog.Level(strings.TrimSpace(strings.ToLower(part)))
 		if !all[l] {
-			return nil, usageErrf("unknown --level %q (valid: query, info, warn, error)", part)
+			return nil, usageErrf("unknown --level %q (valid: query, info, warn, error, audit)", part)
 		}
 		set[l] = true
 	}
@@ -258,6 +259,8 @@ func printLogEntry(st render.Styler, e pglog.Entry) {
 		level = st.Warn(level)
 	case pglog.LevelQuery:
 		level = st.Head(level)
+	case pglog.LevelAudit:
+		level = st.AI(level)
 	default:
 		level = st.Dim(level)
 	}

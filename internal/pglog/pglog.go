@@ -41,6 +41,7 @@ const (
 	LevelInfo  Level = "info"
 	LevelWarn  Level = "warn"
 	LevelError Level = "error"
+	LevelAudit Level = "audit" // pgAudit trail lines (AUDIT: … at LOG severity)
 )
 
 // Entry is one parsed log event, whatever the source format.
@@ -64,6 +65,11 @@ func levelFor(severity, message string) Level {
 		return LevelError
 	case "WARNING":
 		return LevelWarn
+	}
+	// pgAudit emits its trail at LOG severity with an AUDIT: prefix — its own
+	// level, so the audit trail is filterable on its own.
+	if strings.HasPrefix(message, "AUDIT: ") {
+		return LevelAudit
 	}
 	// log_min_duration_statement / log_statement / extended-protocol lines all
 	// arrive at LOG severity; the message shape is the query signal.

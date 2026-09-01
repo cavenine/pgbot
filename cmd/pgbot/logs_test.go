@@ -43,6 +43,10 @@ func TestParseLevels(t *testing.T) {
 	if _, err := parseLevels("warn,bogus"); err == nil {
 		t.Error("unknown level must be a usage error")
 	}
+	aud, err := parseLevels("audit")
+	if err != nil || !aud[pglog.LevelAudit] || aud[pglog.LevelInfo] {
+		t.Errorf("audit must be a filterable level: %v %v", aud, err)
+	}
 }
 
 // pgbot must never show its own footprint: entries from its own backends (by

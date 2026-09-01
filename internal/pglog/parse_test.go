@@ -155,6 +155,9 @@ func TestLevelFor(t *testing.T) {
 		{"LOG", "execute stmt_1: SELECT 1", LevelQuery},
 		{"NOTICE", "x", LevelInfo},
 		{"DEBUG1", "x", LevelInfo},
+		// pgAudit writes its trail as LOG lines prefixed AUDIT: — they get
+		// their own level so `pgbot logs --level audit` reads the audit trail.
+		{"LOG", "AUDIT: SESSION,1,1,READ,SELECT,,,SELECT * FROM accounts,<none>", LevelAudit},
 	}
 	for _, c := range cases {
 		if got := levelFor(c.sev, c.msg); got != c.want {
