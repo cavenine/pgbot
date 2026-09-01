@@ -7,6 +7,14 @@ separately by `model.SchemaVersion` (currently 1.2.0).
 
 ## [Unreleased]
 
+### Added
+- **`pgbot erd` — the schema as an ER diagram, in the terminal.** Box-drawn
+  tables with PK/FK markers and a crow's-foot relationship forest (multi-parent
+  tables cross-linked, cycles handled), introspected from `pg_catalog` —
+  structure only, never data, nothing beyond CONNECT required, and the
+  connection string never leaves the machine. `--mermaid` emits an erDiagram
+  pasteable into GitHub or mermaid.live; `--schema` narrows the scope.
+
 ## [0.7.0] - 2026-09-01
 
 ### Added

@@ -227,6 +227,7 @@ or `$PGBOT_DATABASE_URL`.
 | `indexes` · `queries` · `tables` · `vacuum` | drill into one signal |
 | `logs` | the server log over SQL — newest entries or `--live` follow (experimental) |
 | `waits` | sample where database time goes — wait classes, blockers, contention (experimental) |
+| `erd` | the schema as an ER diagram, drawn in the terminal (`--mermaid` for GitHub) |
 | `advise` | planner-validated missing-index suggestions (needs hypopg) |
 | `ask "…"` · `explain` | a plain-language AI reading of the same deterministic findings |
 | `explain-finding <id>` | the catalogue page for a finding, offline |
@@ -811,6 +812,18 @@ near-zero activity are noise), or **insufficient evidence** — refusing to
 conclude beats a confident guess. When the local store holds wait history, a
 labeled ratio corroborates: *"Lock waits 8× vs the previous 24h."* Shares are
 sampled; the only exact numbers are ages read from the server.
+
+### `erd` — the schema, as a diagram, in your terminal
+
+```sh
+pgbot erd                # box-drawn tables + a crow's-foot relationship forest
+pgbot erd --schema app   # one schema only
+pgbot erd --mermaid      # erDiagram text — pasteable into GitHub or mermaid.live
+```
+
+Structure only — tables, columns, keys, foreign-key edges from `pg_catalog` —
+never data, and the connection string never leaves your machine (unlike
+paste-your-DSN diagram websites). Needs nothing beyond CONNECT.
 
 ### `waits` — where database time goes (experimental)
 
