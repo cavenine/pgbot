@@ -229,6 +229,7 @@ or `$PGBOT_DATABASE_URL`.
 | `waits` | sample where database time goes — wait classes, blockers, contention (experimental) |
 | `erd` | the schema as an ER diagram, drawn in the terminal (`--mermaid` for GitHub) |
 | `activity` | live sessions right now — PIDs, ages, waits, and what each is running |
+| `report` | the full inspection as one self-contained HTML page (`pgbot report > report.html`) |
 | `advise` | planner-validated missing-index suggestions (needs hypopg) |
 | `ask "…"` · `explain` | a plain-language AI reading of the same deterministic findings |
 | `explain-finding <id>` | the catalogue page for a finding, offline |

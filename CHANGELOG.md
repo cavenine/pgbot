@@ -8,6 +8,14 @@ separately by `model.SchemaVersion` (currently 1.2.0).
 ## [Unreleased]
 
 ### Added
+- **`pgbot report` — the full inspection as one self-contained HTML page.**
+  The same collection pipeline as `inspect` (a baseline snapshot is stored as
+  usual), rendered for a browser: health score, findings ordered by severity
+  with evidence, remediation, and caveats inline, top queries with shares,
+  largest tables, unused/redundant indexes and unindexed FKs, the wait
+  profile, and non-default settings — with click-to-sort columns. The Context
+  is PII-free by construction and the page makes zero external requests
+  (pinned by test), so the report is safe to attach to a ticket.
 - **`pgbot activity` — pg_stat_activity for humans.** The live client
   backends: PID, user@db, app, state (colored), current wait, transaction and
   query ages, and the scrubbed SQL. Plain idle sessions are summarized rather
