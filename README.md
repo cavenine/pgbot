@@ -228,6 +228,7 @@ or `$PGBOT_DATABASE_URL`.
 | `logs` | the server log over SQL — newest entries or `--live` follow (experimental) |
 | `waits` | sample where database time goes — wait classes, blockers, contention (experimental) |
 | `erd` | the schema as an ER diagram, drawn in the terminal (`--mermaid` for GitHub) |
+| `activity` | live sessions right now — PIDs, ages, waits, and what each is running |
 | `advise` | planner-validated missing-index suggestions (needs hypopg) |
 | `ask "…"` · `explain` | a plain-language AI reading of the same deterministic findings |
 | `explain-finding <id>` | the catalogue page for a finding, offline |

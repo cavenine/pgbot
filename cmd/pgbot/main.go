@@ -53,6 +53,7 @@ func main() {
 	root.AddCommand(newLogsCmd())
 	root.AddCommand(newWaitsCmd())
 	root.AddCommand(newERDCmd())
+	root.AddCommand(newActivityCmd())
 
 	// enteredRun distinguishes a malformed invocation (bad flags/args/unknown
 	// command — cobra fails before PersistentPreRun) from an execution failure

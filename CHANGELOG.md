@@ -8,6 +8,11 @@ separately by `model.SchemaVersion` (currently 1.2.0).
 ## [Unreleased]
 
 ### Added
+- **`pgbot activity` — pg_stat_activity for humans.** The live client
+  backends: PID, user@db, app, state (colored), current wait, transaction and
+  query ages, and the scrubbed SQL. Plain idle sessions are summarized rather
+  than listed (`--all` lists them); pgbot's own connections are excluded by
+  PID; `--json` emits one scrubbed object per session.
 - **`pgbot erd --layout row`** — left-to-right diagram: parents in the left
   column, children to the right, edges drawn as dashed ascii (`----`, `|`,
   `+`, `<` into the parent) leaving from each FK's own row.
