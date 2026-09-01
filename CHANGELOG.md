@@ -7,6 +7,8 @@ separately by `model.SchemaVersion` (currently 1.2.0).
 
 ## [Unreleased]
 
+## [0.7.2] - 2026-09-01
+
 ### Added
 - **`pgbot logs` reads the pgAudit trail as its own level.** pgAudit writes
   its audit records into the server log at LOG severity with an `AUDIT:`
@@ -562,6 +564,7 @@ separately by `model.SchemaVersion` (currently 1.2.0).
   1.25.13, and golang.org/x/text to v0.39.0; `govulncheck` now runs in CI and
   reports no vulnerabilities.
 
+[0.7.2]: https://github.com/pgrundev/pgbot/releases/tag/v0.7.2
 [0.7.1]: https://github.com/pgrundev/pgbot/releases/tag/v0.7.1
 [0.7.0]: https://github.com/pgrundev/pgbot/releases/tag/v0.7.0
 [0.6.3]: https://github.com/pgrundev/pgbot/releases/tag/v0.6.3
