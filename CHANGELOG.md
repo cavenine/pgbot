@@ -7,13 +7,18 @@ separately by `model.SchemaVersion` (currently 1.2.0).
 
 ## [Unreleased]
 
+## [0.7.1] - 2026-09-01
+
 ### Added
 - **`pgbot erd` — the schema as an ER diagram, in the terminal.** Box-drawn
   tables with PK/FK markers and a crow's-foot relationship forest (multi-parent
   tables cross-linked, cycles handled), introspected from `pg_catalog` —
   structure only, never data, nothing beyond CONNECT required, and the
-  connection string never leaves the machine. `--mermaid` emits an erDiagram
-  pasteable into GitHub or mermaid.live; `--schema` narrows the scope.
+  connection string never leaves the machine. Every foreign key is
+  ROUTED as a drawn edge — corner at the FK row, a vertical lane in the left
+  gutter, crossings as ┼, an arrowhead into the parent — with lane reuse and a
+  cap so huge schemas degrade to the textual markers. `--mermaid` emits an
+  erDiagram pasteable into GitHub or mermaid.live; `--schema` narrows the scope.
 
 ## [0.7.0] - 2026-09-01
 
@@ -527,6 +532,7 @@ separately by `model.SchemaVersion` (currently 1.2.0).
   1.25.13, and golang.org/x/text to v0.39.0; `govulncheck` now runs in CI and
   reports no vulnerabilities.
 
+[0.7.1]: https://github.com/pgrundev/pgbot/releases/tag/v0.7.1
 [0.7.0]: https://github.com/pgrundev/pgbot/releases/tag/v0.7.0
 [0.6.3]: https://github.com/pgrundev/pgbot/releases/tag/v0.6.3
 [0.6.2]: https://github.com/pgrundev/pgbot/releases/tag/v0.6.2
