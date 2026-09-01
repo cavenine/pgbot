@@ -551,6 +551,8 @@ on stdio, so an AI agent can call pgbot as a read-only tool. It exposes
 - `explain_plan` — the planner's plan for a SELECT (plain EXPLAIN, never executed)
 - `schema_of` — a table's columns/indexes/constraints + row estimate, **no data**
 - `compare_to_baseline` — the `diff`, with its interval-honesty and reset caveats
+- `why` — the causal chains from stored history (symptom ← mechanism ←
+  antecedent), computed offline from the local store
 - `explain_finding` — pgbot's catalogue page for a finding, so the agent explains
   a recommendation in pgbot's words instead of inventing them
 
@@ -559,7 +561,13 @@ label, honors `.pgbot.toml` suppression, and never exposes a raw connection
 string or query literals to the model. The agent reasons over the same findings
 the CLI computes.
 
-Add it to any MCP client (Claude Desktop/Code, Cursor, …):
+In Claude Code it's one line:
+
+```sh
+claude mcp add pgbot --env DATABASE_URL="postgres://pgbot_ro:…@host:5432/db?sslmode=require" -- pgbot mcp
+```
+
+Or add it to any MCP client's config (Claude Desktop, Cursor, …):
 
 ```json
 {
