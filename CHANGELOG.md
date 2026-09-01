@@ -7,6 +7,8 @@ separately by `model.SchemaVersion` (currently 1.2.0).
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-09-01
+
 ### Added
 - **`pgbot why --duration 10s` — live wait diagnosis on top of the offline
   history engine.** `why` without the flag is unchanged (offline, no
@@ -517,6 +519,7 @@ separately by `model.SchemaVersion` (currently 1.2.0).
   1.25.13, and golang.org/x/text to v0.39.0; `govulncheck` now runs in CI and
   reports no vulnerabilities.
 
+[0.7.0]: https://github.com/pgrundev/pgbot/releases/tag/v0.7.0
 [0.6.3]: https://github.com/pgrundev/pgbot/releases/tag/v0.6.3
 [0.6.2]: https://github.com/pgrundev/pgbot/releases/tag/v0.6.2
 [0.6.1]: https://github.com/pgrundev/pgbot/releases/tag/v0.6.1
