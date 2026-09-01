@@ -18,7 +18,7 @@ import (
 type activityRow struct {
 	PID       int     `db:"pid" json:"pid"`
 	User      string  `db:"usename" json:"user,omitempty"`
-	Db        string  `db:"datname" json:"db,omitempty"`
+	DB        string  `db:"datname" json:"db,omitempty"`
 	App       string  `db:"app_name" json:"app,omitempty"`
 	State     string  `db:"state" json:"state"`
 	Wait      string  `db:"wait" json:"wait,omitempty"`
@@ -198,7 +198,7 @@ func renderActivity(rows []activityRow, all, rawQueries, noColor bool) {
 			wait = st.Warn(wait)
 		}
 		fmt.Fprintf(tw, "  %d\t%s@%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
-			r.PID, r.User, r.Db, truncStr(r.App, 16), state, wait,
+			r.PID, r.User, r.DB, truncStr(r.App, 16), state, wait,
 			fmtAgeShort(r.XactAgeS), fmtAgeShort(r.QueryAgeS), truncStr(q, 60))
 	}
 	tw.Flush()
