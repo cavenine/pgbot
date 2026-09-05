@@ -190,3 +190,64 @@ func TestResolve_openAIKeyStillUsesChatCompletions(t *testing.T) {
 		t.Errorf("auto-detected OpenAI must use the chat/completions provider, got %T", m)
 	}
 }
+
+func TestBedrockResponses(t *testing.T) {
+	for _, model := range []string{"openai.gpt-5.6-terra", "openai.gpt-6-astra"} {
+		t.Run(model, func(t *testing.T) {
+			clearEnv(t)
+			t.Setenv("PGBOT_AI_PROVIDER", "bedrock")
+			t.Setenv("AWS_BEARER_TOKEN_BEDROCK", "dummy-token")
+			t.Setenv("AWS_REGION", "us-west-2")
+			m, err := Resolve()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if m.Provider() != "bedrock" || m.Model() != "openai."+defaultOpenAIModel || m.Endpoint() != "https://bedrock-mantle.us-west-2.api.aws/openai/v1" {
+				t.Fatal("incorrect Bedrock defaults")
+			}
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.Method != "POST" || r.URL.Path != "/openai/v1/responses" || r.Header.Get("Authorization") != "Bearer dummy-token" {
+					t.Error("incorrect request route or authentication")
+				}
+				var body map[string]any
+				if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+					t.Error(err)
+				}
+				if body["model"] != model || body["store"] != false || body["max_output_tokens"] != float64(reasoningTokenFloor) || body["instructions"] != "system" || body["input"] != "report" {
+					t.Errorf("incorrect request: %v", body)
+				}
+				if _, ok := body["temperature"]; ok {
+					t.Error("reasoning model must omit temperature")
+				}
+				if body["reasoning"].(map[string]any)["effort"] != "low" {
+					t.Error("missing effort")
+				}
+				io.WriteString(w, `{"status":"completed","output":[{"type":"message","content":[{"type":"output_text","text":"Healthy."}]}]}`)
+			}))
+			defer srv.Close()
+			t.Setenv("PGBOT_AI_BASE_URL", srv.URL+"/openai/v1/")
+			t.Setenv("PGBOT_AI_MODEL", model)
+			t.Setenv("PGBOT_AI_REASONING_EFFORT", "low")
+			m, err = Resolve()
+			if err != nil {
+				t.Fatal(err)
+			}
+			out, err := m.Generate(context.Background(), Call{System: "system", Prompt: "report", Temperature: f64(0.2), MaxOutputTokens: i64(8192)})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if out.Text != "Healthy." {
+				t.Errorf("unexpected answer: %q", out.Text)
+			}
+		})
+	}
+}
+
+func TestBedrockRequiresToken(t *testing.T) {
+	clearEnv(t)
+	t.Setenv("PGBOT_AI_PROVIDER", "bedrock")
+	t.Setenv("OPENAI_API_KEY", "unrelated-key")
+	if _, err := Resolve(); err == nil || !strings.Contains(err.Error(), "AWS_BEARER_TOKEN_BEDROCK") {
+		t.Fatalf("expected Bedrock token error, got %v", err)
+	}
+}

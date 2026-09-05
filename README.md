@@ -644,6 +644,7 @@ not require confirmation.
 | Anthropic | `ANTHROPIC_API_KEY` | `claude-opus-5` | `/v1/messages` |
 | OpenAI | `OPENAI_API_KEY` | `gpt-5.6-terra` | `/chat/completions` |
 | xAI | `XAI_API_KEY` / `GROK_API_KEY` | `grok-4.6` | `/responses` |
+| Bedrock Mantle | `AWS_BEARER_TOKEN_BEDROCK` | `openai.gpt-5.6-terra` | `/openai/v1/responses` |
 
 The OpenAI provider also supports compatible services such as OpenRouter,
 Groq, Together, DeepSeek, Mistral, Ollama, vLLM, and LM Studio.
@@ -658,6 +659,31 @@ Use `PGBOT_AI_PROVIDER` to select a provider explicitly. `PGBOT_AI_MODEL`,
 override its defaults. Existing `PGBOT_GEMINI_MODEL` and `PGBOT_GEMINI_URL`
 and `PGBOT_OPENAI_MODEL` and `PGBOT_OPENAI_URL` settings remain supported. Keys
 are read only from environment variables.
+
+For OpenAI GPT models on AWS Bedrock Mantle, use your existing Bedrock token
+in `AWS_BEARER_TOKEN_BEDROCK`, then select the provider explicitly:
+
+```sh
+export PGBOT_AI_PROVIDER=bedrock
+export AWS_REGION=us-east-1
+export PGBOT_AI_MODEL=openai.gpt-5.6-terra
+pgbot ask "What needs attention?" --url "$DATABASE_URL"
+```
+
+`mantle` is an alias for `bedrock`. Region precedence is `AWS_REGION`, then
+`AWS_DEFAULT_REGION`, then `us-east-1`. The default base URL is
+`https://bedrock-mantle.<region>.api.aws/openai/v1`, as documented by
+[AWS for OpenAI GPT models](https://aws.amazon.com/blogs/machine-learning/get-started-with-openai-gpt-5-6-sol-terra-and-luna-on-amazon-bedrock/).
+Set `PGBOT_AI_MODEL` to the exact Bedrock model ID available to your account
+and region, including for GPT-6 models. `PGBOT_AI_BASE_URL` overrides the full
+base URL. `PGBOT_AI_API_KEY` overrides the Bedrock token variable.
+
+This integration uses the supplied bearer token; it does not resolve
+`AWS_PROFILE` credentials or mint/refresh tokens. Replace an expired token in
+your environment before running again. Requests set `store=false`, omit
+sampling temperature for GPT-5/6 reasoning models, and allow at least 32,000
+output tokens (including hidden reasoning). `PGBOT_AI_REASONING_EFFORT` is
+optional; when unset, the service chooses its default.
 
 **Exit codes** (a stable contract for CI): `0` clean · `1` warnings · `2` critical
 findings · `3` connection/execution failure · `64` usage error (bad flags/args).

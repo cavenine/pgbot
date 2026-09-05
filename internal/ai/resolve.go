@@ -15,7 +15,7 @@ import (
 //
 // Precedence:
 //
-//	PGBOT_AI_PROVIDER          explicit: gemini | openai | anthropic | xai
+//	PGBOT_AI_PROVIDER          explicit: gemini | openai | anthropic | xai | bedrock
 //	                           otherwise auto-detected from whichever key is set,
 //	                           OpenAI first to preserve existing behavior
 //	PGBOT_AI_MODEL             model id (else the provider's default)
@@ -63,6 +63,22 @@ func Resolve() (LanguageModel, error) {
 			base = defaultAnthropicURL
 		}
 		p = &AnthropicProvider{APIKey: key, BaseURL: trimURL(base), HTTP: httpc}
+
+	case "bedrock", "mantle":
+		if key == "" {
+			key = firstEnv("AWS_BEARER_TOKEN_BEDROCK")
+		}
+		if base == "" {
+			region := envOr("AWS_REGION", envOr("AWS_DEFAULT_REGION", "us-east-1"))
+			base = "https://bedrock-mantle." + region + ".api.aws/openai/v1"
+		}
+		if model == "" {
+			model = "openai." + defaultOpenAIModel
+		}
+		p = &ResponsesProvider{
+			APIKey: key, BaseURL: trimURL(base), HTTP: httpc, Label: "bedrock",
+			ReasoningEffort: envOr("PGBOT_AI_REASONING_EFFORT", ""),
+		}
 
 	case "xai", "grok", "responses":
 		// The Responses API, which xAI documents as its primary interface. Same
@@ -118,7 +134,7 @@ func Resolve() (LanguageModel, error) {
 		}
 
 	default:
-		return nil, fmt.Errorf("unknown PGBOT_AI_PROVIDER %q (want gemini, openai, anthropic, or xai)", name)
+		return nil, fmt.Errorf("unknown PGBOT_AI_PROVIDER %q (want gemini, openai, anthropic, xai, responses, or bedrock)", name)
 	}
 
 	// A local endpoint (Ollama, vLLM, LM Studio) usually has no key at all, and
@@ -157,6 +173,8 @@ func keyVarsFor(name string) string {
 		return "GEMINI_API_KEY / GOOGLE_API_KEY"
 	case "anthropic", "claude":
 		return "ANTHROPIC_API_KEY"
+	case "bedrock", "mantle":
+		return "AWS_BEARER_TOKEN_BEDROCK"
 	case "xai", "grok", "responses":
 		return "XAI_API_KEY / GROK_API_KEY"
 	default:
