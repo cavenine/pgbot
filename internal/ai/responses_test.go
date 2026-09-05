@@ -242,12 +242,3 @@ func TestBedrockResponses(t *testing.T) {
 		})
 	}
 }
-
-func TestBedrockRequiresToken(t *testing.T) {
-	clearEnv(t)
-	t.Setenv("PGBOT_AI_PROVIDER", "bedrock")
-	t.Setenv("OPENAI_API_KEY", "unrelated-key")
-	if _, err := Resolve(); err == nil || !strings.Contains(err.Error(), "AWS_BEARER_TOKEN_BEDROCK") {
-		t.Fatalf("expected Bedrock token error, got %v", err)
-	}
-}

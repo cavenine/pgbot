@@ -10,8 +10,8 @@ import (
 )
 
 // Resolve builds the model to use from the environment. Keys come ONLY from the
-// environment — never a flag — so they can't leak into shell history or the
-// process list. That invariant is enforced here, once, for every provider.
+// environment (or the AWS credential chain for Bedrock), never a flag, so they
+// cannot leak into shell history or the process list.
 //
 // Precedence:
 //
@@ -68,17 +68,7 @@ func Resolve() (LanguageModel, error) {
 		if key == "" {
 			key = firstEnv("AWS_BEARER_TOKEN_BEDROCK")
 		}
-		if base == "" {
-			region := envOr("AWS_REGION", envOr("AWS_DEFAULT_REGION", "us-east-1"))
-			base = "https://bedrock-mantle." + region + ".api.aws/openai/v1"
-		}
-		if model == "" {
-			model = "openai." + defaultOpenAIModel
-		}
-		p = &ResponsesProvider{
-			APIKey: key, BaseURL: trimURL(base), HTTP: httpc, Label: "bedrock",
-			ReasoningEffort: envOr("PGBOT_AI_REASONING_EFFORT", ""),
-		}
+		return bedrockModel(model, base, key, httpc)
 
 	case "xai", "grok", "responses":
 		// The Responses API, which xAI documents as its primary interface. Same
