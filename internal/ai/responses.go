@@ -111,11 +111,6 @@ func (m *responsesModel) Generate(ctx context.Context, c Call) (*Response, error
 	}
 	if reasoningModel(m.model) {
 		reqBody.Temperature = nil
-		limit := int64(reasoningTokenFloor)
-		if c.MaxOutputTokens != nil && *c.MaxOutputTokens > limit {
-			limit = *c.MaxOutputTokens
-		}
-		reqBody.MaxOutputTokens = &limit
 	}
 	if e := m.provider.ReasoningEffort; e != "" {
 		reqBody.Reasoning = &reasoningCfg{Effort: e}
