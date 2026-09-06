@@ -63,8 +63,11 @@ and (only if you want the optional `ask`/`explain` AI layer) one model key:
 export DATABASE_URL="postgres://pgbot_ro:…@host:5432/db?sslmode=require"
 
 # optional, for `pgbot ask` / `pgbot explain` — one of:
-export OPENAI_API_KEY=sk-…        # → OpenAI (gpt-4o-mini by default)
+export OPENAI_API_KEY=sk-…        # → OpenAI (gpt-5.6-terra by default)
 export GEMINI_API_KEY=…           # → Google Gemini (AI Studio key)
+export ANTHROPIC_API_KEY=…        # → Anthropic (claude-opus-5 by default)
+export XAI_API_KEY=…              # → xAI (grok-4.6 by default)
+# …or any OpenAI-compatible endpoint, local ones included — see "explain — optional AI layer"
 ```
 
 Everything else — `inspect`, `queries`, `indexes`, MCP, CI — is fully
@@ -258,6 +261,7 @@ findings never move them.
 | npx (no install) | `npx @pgbot/cli inspect "$DATABASE_URL"` |
 | Script (cosign signature + checksum) | `curl -fsSL https://pgbot.dev/install \| sh` |
 | Homebrew | `brew install pgrundev/tap/pgbot` |
+| Arch User Repository | `yay -S pgbot-bin` |
 | Go | `go install github.com/pgrundev/pgbot/cmd/pgbot@latest` |
 | Docker | `docker run --rm ghcr.io/pgrundev/pgbot inspect "$DATABASE_URL"` |
 | Windows / manual | download the archive for your OS/arch from [Releases](https://github.com/pgrundev/pgbot/releases) (Linux/macOS `.tar.gz`, Windows `.zip`) |
@@ -393,6 +397,31 @@ pgbot resolves the connection in this order: the argument first, then
 `$DATABASE_URL`, then `$PGBOT_DATABASE_URL`. Add `?sslmode=require` (or stricter)
 for any database reached over a network.
 
+### Reaching a private database
+
+A database on a private network — RDS/Aurora inside a VPC, or a Postgres behind a
+bastion — is reached through an SSH jump host:
+
+```sh
+pgbot inspect "postgres://pgbot_ro@db.internal:5432/appdb?sslmode=verify-full" \
+  --ssh-tunnel bastion.example.com    # or user@host:port, or a ~/.ssh/config alias
+```
+
+`--ssh-tunnel` is global — every command that opens a connection takes it — and
+`$PGBOT_SSH_TUNNEL` sets it for a whole session.
+
+The tunnel is a dialer, not an `ssh -L` forward, so **the DSN keeps naming the real
+host**: `sslmode=verify-full` still validates against that hostname, `.pgpass` still
+matches on it, and no local port is left open to everyone else on your machine.
+
+How the jump host is reached comes from your own `ssh_config` — `HostName`, `Port`,
+`User`, `IdentityFile`, `IdentitiesOnly`, `IdentityAgent`, `StrictHostKeyChecking`,
+`UserKnownHostsFile` — so a bare alias works and the host key is verified exactly
+the way your `ssh` verifies it: a host seen for the first time is accepted under
+your `StrictHostKeyChecking` setting and recorded in your known_hosts, and a key
+that later changes is refused. Your agent is offered before any key on disk, and
+one SSH connection serves the whole run. Raise `--timeout` if the link is slow.
+
 ### Environment reference
 
 | Variable | Purpose |
@@ -400,12 +429,17 @@ for any database reached over a network.
 | `DATABASE_URL` / `PGBOT_DATABASE_URL` | Connection used when no connection string is passed (checked in that order, after the argument). |
 | `NO_COLOR` | Disables ANSI output (as does a non-TTY, or `--no-color`). |
 | `XDG_STATE_HOME` | Where the baseline store lives; defaults to `~/.local/state`. |
+| `PGBOT_SSH_TUNNEL` | SSH jump host used when `--ssh-tunnel` isn't passed (`[user@]host[:port]`, or a `~/.ssh/config` alias). |
 | `PGBOT_CONFIG` | Path to `.pgbot.toml` (otherwise discovered from cwd upward, then `$XDG_CONFIG_HOME`). |
-| `OPENAI_API_KEY` | Enables `ask` / `explain` via OpenAI. Keys are never accepted as flags. |
+| `OPENAI_API_KEY` / `OPENROUTER_API_KEY` | Enables `ask` / `explain` via OpenAI or OpenRouter. Keys are never accepted as flags. |
 | `GEMINI_API_KEY` / `GOOGLE_API_KEY` | Enables `ask` / `explain` via Google Gemini. |
-| `PGBOT_AI_PROVIDER` | Forces `openai` or `gemini` when both keys are set. |
-| `PGBOT_OPENAI_MODEL` / `PGBOT_OPENAI_URL` | Model/endpoint override (any OpenAI-compatible endpoint works). |
-| `PGBOT_GEMINI_MODEL` / `PGBOT_GEMINI_URL` | Model/endpoint override for Gemini. |
+| `ANTHROPIC_API_KEY` | Enables `ask` / `explain` via Anthropic. |
+| `XAI_API_KEY` / `GROK_API_KEY` | Enables `ask` / `explain` via xAI. |
+| `PGBOT_AI_PROVIDER` | `gemini`, `anthropic`, `openai`, or `xai` — picks one when several keys are set (auto-detection tries OpenAI first). |
+| `PGBOT_AI_MODEL` / `PGBOT_AI_BASE_URL` / `PGBOT_AI_API_KEY` | Model, endpoint, and key override for whichever provider is selected; the way to reach an OpenAI-compatible service (OpenRouter, Groq, Ollama, vLLM, …). |
+| `PGBOT_AI_REASONING_EFFORT` | `none`, `low`, `medium`, `high`, `xhigh`, or `max` for reasoning models (OpenAI's default here is `xhigh`). |
+| `PGBOT_OPENAI_MODEL` / `PGBOT_OPENAI_URL` | Still honored: OpenAI-scoped model/endpoint override. |
+| `PGBOT_GEMINI_MODEL` / `PGBOT_GEMINI_URL` | Still honored: Gemini-scoped model/endpoint override. |
 | `PGBOT_REQUIRE_SIGNATURE` | `install.sh` only: hard-fail unless the cosign signature verifies. |
 
 ## Connecting to managed providers
@@ -518,6 +552,8 @@ pgbot inspect <connection-string>   # URL or libpq DSN, or set $DATABASE_URL
   --interval 1s          gap between the two counter samples (min 500ms)
   --no-store             don't read or write the local baseline
   --no-color             disable ANSI (also honors NO_COLOR and non-TTY)
+  --ssh-tunnel <host>    reach the database through an SSH jump host — global, so
+                         every command that connects takes it (also $PGBOT_SSH_TUNNEL)
 
 pgbot baselines list                # what's stored locally, per database
 pgbot baselines prune <fingerprint> # delete a database's snapshots
@@ -531,7 +567,7 @@ pgbot vacuum <connection-string>    # autovacuum health per table — dead tuple
 pgbot tune <connection-string>      # config-tuning recommendations from the workload
 pgbot explain <connection-string>   # inspect, then have an AI explain the findings
 pgbot ask "why is it slow?"         # AI answer grounded on the findings ($DATABASE_URL)
-  --yes                  skip the "this sends data to Google" confirmation
+  --yes                  skip the data-disclosure confirmation prompt
 pgbot mcp                           # run as an MCP server over stdio (for AI agents)
 ```
 
@@ -1089,7 +1125,10 @@ package is scoped. Use `npx @pgbot/cli`.
 Nothing leaves the machine unless you ask for it: every command except the AI
 layer is entirely local. The only commands that make an outbound call are `pgbot
 explain` and `pgbot ask`, which send the same PII-free Context to your configured
-model — OpenAI or Gemini (and say so, with a confirmation prompt).
+model — Gemini, Anthropic, OpenAI, xAI, or an OpenAI-compatible endpoint — and
+say so, naming the provider, host, and model, with a confirmation prompt. A
+local endpoint (Ollama, vLLM, LM Studio on this machine) is identified as local
+and sends nothing off the box.
 
 That Context is PII-free by construction: `pg_stat_statements` text is normalized
 (`$1` placeholders), and the one raw-SQL source (`pg_stat_activity` for blocking
