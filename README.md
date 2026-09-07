@@ -438,7 +438,7 @@ one SSH connection serves the whole run. Raise `--timeout` if the link is slow.
 | `GEMINI_API_KEY` / `GOOGLE_API_KEY` | Enables `ask` / `explain` via Google Gemini. |
 | `ANTHROPIC_API_KEY` | Enables `ask` / `explain` via Anthropic. |
 | `XAI_API_KEY` / `GROK_API_KEY` | Enables `ask` / `explain` via xAI. |
-| `AWS_BEARER_TOKEN_BEDROCK`, or `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` / `AWS_SESSION_TOKEN` | Enables `ask` / `explain` via AWS Bedrock Mantle with `PGBOT_AI_PROVIDER=bedrock` (never auto-detected). `AWS_REGION` picks the endpoint; `AWS_CREDENTIAL_EXPIRATION` bounds the minted token. |
+| `AWS_BEARER_TOKEN_BEDROCK`, or the AWS SDK credential chain | Enables `ask` / `explain` via AWS Bedrock Mantle with `PGBOT_AI_PROVIDER=bedrock` (never auto-detected). `AWS_REGION` picks the endpoint; SDK credential expiry bounds the minted token. |
 | `PGBOT_AI_PROVIDER` | `gemini`, `anthropic`, `openai`, `xai`, or `bedrock` (alias `mantle`) — picks one when several keys are set (auto-detection tries OpenAI first). |
 | `PGBOT_AI_MODEL` / `PGBOT_AI_BASE_URL` / `PGBOT_AI_API_KEY` | Model, endpoint, and key override for whichever provider is selected; the way to reach an OpenAI-compatible service (OpenRouter, Groq, Ollama, vLLM, …). |
 | `PGBOT_AI_REASONING_EFFORT` | `none`, `low`, `medium`, `high`, `xhigh`, or `max` for reasoning models (OpenAI's default here is `xhigh`). |
@@ -684,7 +684,7 @@ not require confirmation.
 | Anthropic | `ANTHROPIC_API_KEY` | `claude-opus-5` | `/v1/messages` |
 | OpenAI | `OPENAI_API_KEY` | `gpt-5.6-terra` | `/chat/completions` |
 | xAI | `XAI_API_KEY` / `GROK_API_KEY` | `grok-4.6` | `/responses` |
-| Bedrock Mantle | `AWS_BEARER_TOKEN_BEDROCK`, or `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` | `openai.gpt-5.6-terra` | Responses (GPT) / Messages (Claude) |
+| Bedrock Mantle | `AWS_BEARER_TOKEN_BEDROCK`, or the AWS SDK credential chain | `openai.gpt-5.6-terra` | Responses (GPT) / Messages (Claude) |
 
 The OpenAI provider also supports compatible services such as OpenRouter,
 Groq, Together, DeepSeek, Mistral, Ollama, vLLM, and LM Studio.
@@ -698,34 +698,36 @@ Use `PGBOT_AI_PROVIDER` to select a provider explicitly. `PGBOT_AI_MODEL`,
 `PGBOT_AI_BASE_URL`, `PGBOT_AI_API_KEY`, and `PGBOT_AI_REASONING_EFFORT`
 override its defaults. Existing `PGBOT_GEMINI_MODEL` and `PGBOT_GEMINI_URL`
 and `PGBOT_OPENAI_MODEL` and `PGBOT_OPENAI_URL` settings remain supported. Keys
-are read only from environment variables.
+come from environment variables, or the AWS SDK credential chain for Bedrock.
 
-For AWS Bedrock Mantle, select `bedrock` (or its alias `mantle`) and give pgbot
-AWS credentials the same way you give it any other key — through the environment.
-No AWS SDK, no config files read, no calls to STS or instance metadata: pgbot
-mints Bedrock's bearer token itself from the standard three variables.
+For AWS Bedrock Mantle, select `bedrock` (or its alias `mantle`). This fork uses
+the AWS SDK for credential discovery, caching, refresh, and SigV4 signing.
+Profiles, SSO sessions, ECS task roles, and EC2 instance roles use the SDK's
+standard credential chain.
 
 ```sh
 export PGBOT_AI_PROVIDER=bedrock
 export AWS_REGION=us-east-1
-# a profile, an SSO login, or an assumed role becomes the three variables:
-eval "$(aws configure export-credentials --profile your-profile --format env)"
-pgbot ask "What needs attention?" "$DATABASE_URL"
-
-# Claude uses the Anthropic Messages API automatically:
-export PGBOT_AI_MODEL=anthropic.claude-sonnet-5
+# Local development only; ECS uses its task role without AWS_PROFILE:
+export AWS_PROFILE=your-profile
 pgbot ask "What needs attention?" "$DATABASE_URL"
 ```
 
-Authentication precedence is `PGBOT_AI_API_KEY`, then `AWS_BEARER_TOKEN_BEDROCK`
-(a Bedrock API key from the console), then `AWS_ACCESS_KEY_ID` /
-`AWS_SECRET_ACCESS_KEY` (plus `AWS_SESSION_TOKEN` for temporary credentials).
-An explicit token is sent as-is. From access keys pgbot mints a fresh bearer
-token per request, valid for at most 15 minutes and never past
-`AWS_CREDENTIAL_EXPIRATION` when that is set (the export command sets it).
-`AWS_PROFILE` on its own does not authenticate — export it as above.
+In ECS, assign a task IAM role with access to the selected Bedrock model and set
+`PGBOT_AI_PROVIDER=bedrock` and `AWS_REGION`. Do not export temporary access keys
+or set `AWS_PROFILE`: the SDK retrieves task credentials from the container
+credential endpoint and refreshes them as they expire, including in a long-lived
+MCP server. Use a container built from this fork; upstream images use a different
+credential implementation.
 
-Region precedence is `AWS_REGION`, `AWS_DEFAULT_REGION`, then `us-east-1`. The
+Authentication precedence is `PGBOT_AI_API_KEY`, then `AWS_BEARER_TOKEN_BEDROCK`,
+then the AWS SDK credential chain. Supplied bearer tokens bypass SDK credential
+resolution. IAM credentials are retrieved when inference is requested, and the
+SDK signer creates a bearer token locally for each request, valid for at most
+15 minutes and no longer than the SDK-reported credential expiry.
+
+Region precedence is `AWS_REGION`, `AWS_DEFAULT_REGION`, the SDK configuration
+when using IAM authentication, then `us-east-1`. The
 default model is `openai.gpt-5.6-terra`. OpenAI GPT models use
 `https://bedrock-mantle.<region>.api.aws/openai/v1` and the Responses API, as
 documented by
@@ -1176,11 +1178,13 @@ layer is entirely local. The only commands that make an outbound call are `pgbot
 explain` and `pgbot ask`, which send the same PII-free Context to your configured
 model — Gemini, Anthropic, OpenAI, xAI, AWS Bedrock Mantle, or an
 OpenAI-compatible endpoint — and say so, naming the provider, host, and model,
-with a confirmation prompt. Bedrock's token is minted locally from your
-environment credentials; pgbot never reads AWS config files or calls STS or
-instance metadata. A
-local endpoint (Ollama, vLLM, LM Studio on this machine) is identified as local
+with a confirmation prompt. A local endpoint (Ollama, vLLM, LM Studio on this machine) is identified as local
 and sends nothing off the box.
+
+For Bedrock IAM authentication, the AWS SDK may read AWS configuration files
+and contact STS, SSO/OIDC, or container/instance metadata services to obtain or
+refresh credentials. These requests do not contain the findings Context.
+Supplied bearer tokens bypass credential discovery; IAM token signing is local.
 
 That Context is PII-free by construction: `pg_stat_statements` text is normalized
 (`$1` placeholders), and the one raw-SQL source (`pg_stat_activity` for blocking

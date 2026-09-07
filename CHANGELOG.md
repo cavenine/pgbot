@@ -19,15 +19,12 @@ separately by `model.SchemaVersion` (currently 1.2.0).
   @edwardsb). `PGBOT_AI_PROVIDER=bedrock` (alias `mantle`) routes `openai.*`
   models through the Responses API and `anthropic.*` models through the
   Messages API on `bedrock-mantle.<region>.api.aws`; the default is
-  `openai.gpt-5.6-terra`. Authenticate with `AWS_BEARER_TOKEN_BEDROCK` or with
-  `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` / `AWS_SESSION_TOKEN`, from
-  which pgbot mints Bedrock's short-lived bearer token itself — a hundred lines
-  of SigV4 over the standard library, pinned to AWS's reference generator by a
-  golden-signature test. No AWS SDK, no config files, no STS or metadata calls:
-  a profile or SSO login is exported with
-  `eval "$(aws configure export-credentials --format env)"`. Access keys only
-  ever go to the Mantle host for the configured region, and Bedrock requests
-  never follow redirects.
+  `openai.gpt-5.6-terra`. This fork uses the AWS SDK credential chain and SigV4
+  signer, including automatic ECS task-role credential refresh, profiles, SSO,
+  and EC2 roles. Supplied `PGBOT_AI_API_KEY` / `AWS_BEARER_TOKEN_BEDROCK` tokens
+  bypass credential discovery. IAM tokens are restricted to the configured
+  regional Mantle HTTPS host, bounded by credential expiry, and never forwarded
+  through redirects.
 
 ## [0.8.1] - 2026-09-06
 
